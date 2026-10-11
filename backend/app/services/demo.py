@@ -187,6 +187,27 @@ def seed_demo(db: Session) -> None:
         LoopStage(loop_id=loop.id, stage="intervene", content={"intervention": "番茄钟 + 手机放客厅"}),
     ])
 
-    # ---------- 事件 ----------
-    record_event(db, module="kd", event_type="demo.seeded", ref_type="system", ref_id=0,
+    # ---------- 事件（让证据时间线有真实分布） ----------
+    from app.services.events import record_event as _re
+    _re(db, module="kd", event_type="attempt.recorded", ref_type="topic", ref_id=t_limit.id,
+        title="记录答题（正确，独立）", occurred_at=now - timedelta(days=5))
+    _re(db, module="kd", event_type="diagnosis.created", ref_type="topic", ref_id=t_integr.id,
+        title="规则诊断：方法选择困难（置信度 62%）", occurred_at=now - timedelta(days=2), importance=2)
+    _re(db, module="ml", event_type="ml.review", ref_type="card", ref_id=cards[0].id,
+        title="复习卡片 abandon（评分 3，下次 3.5 天）", occurred_at=now - timedelta(days=1))
+    _re(db, module="ml", event_type="experiment.created", ref_type="experiment", ref_id=exp.id,
+        title="创建记忆实验：间隔 vs 集中复习", occurred_at=now - timedelta(days=3), importance=2)
+    _re(db, module="dtm", event_type="decision.created", ref_type="decision", ref_id=d.id,
+        title="创建决策：考研还是就业", occurred_at=now - timedelta(days=4), importance=2)
+    _re(db, module="dtm", event_type="decision.update_added", ref_type="decision", ref_id=d.id,
+        title="新信息（重大）：了解到目标院校今年缩招", occurred_at=now - timedelta(days=1), importance=2)
+    _re(db, module="ta", event_type="task.status_changed", ref_type="task", ref_id=t1.id,
+        title="任务「整理数据结构笔记」状态：doing → done", occurred_at=now - timedelta(days=8), importance=2)
+    _re(db, module="ta", event_type="task.blocked", ref_type="task", ref_id=t2.id,
+        title="任务「刷操作系统真题」记录阻塞：答案册没到货", occurred_at=now - timedelta(days=2), importance=2)
+    _re(db, module="hyp", event_type="hypothesis.created", ref_type="hypothesis", ref_id=h.id,
+        title="创建假设：上午学习独立完成率更高", occurred_at=now - timedelta(days=8), importance=2)
+    _re(db, module="loop", event_type="loop.created", ref_type="loop", ref_id=loop.id,
+        title="开启改进循环：减少刷题时的分心", occurred_at=now - timedelta(days=6), importance=2)
+    record_event(db, module="sys", event_type="demo.seeded", ref_type="system", ref_id=0,
                  title="载入演示数据（非真实记录）", importance=3)
