@@ -61,6 +61,7 @@ export default function KDPage() {
 
   const selectTopic = (id: number) => {
     setSelectedTopicId(id);
+    setTaskForm((prev) => ({ ...prev, topic_id: String(id) }));
     setDiag(null);
     setSuggestions([]);
     void loadDiagnosis(id);
@@ -247,7 +248,7 @@ export default function KDPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">新建知识点</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <Select value={topicForm.subject_id} onChange={(e) => setTopicForm({ ...topicForm, subject_id: e.target.value })}>
+                <Select aria-label="知识点所属学科" value={topicForm.subject_id} onChange={(e) => setTopicForm({ ...topicForm, subject_id: e.target.value })}>
                   <option value="">选择学科…</option>
                   {(graph.data?.subjects ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </Select>
@@ -259,11 +260,11 @@ export default function KDPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">添加依赖</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <Select value={edgeForm.from} onChange={(e) => setEdgeForm({ ...edgeForm, from: e.target.value })}>
+                <Select aria-label="前置知识点" value={edgeForm.from} onChange={(e) => setEdgeForm({ ...edgeForm, from: e.target.value })}>
                   <option value="">前置知识点…</option>
                   {(graph.data?.nodes ?? []).map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
                 </Select>
-                <Select value={edgeForm.to} onChange={(e) => setEdgeForm({ ...edgeForm, to: e.target.value })}>
+                <Select aria-label="后续知识点" value={edgeForm.to} onChange={(e) => setEdgeForm({ ...edgeForm, to: e.target.value })}>
                   <option value="">后续知识点…</option>
                   {(graph.data?.nodes ?? []).map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
                 </Select>
