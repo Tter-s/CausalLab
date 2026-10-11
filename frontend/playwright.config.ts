@@ -7,6 +7,9 @@ import { defineConfig, devices } from "@playwright/test";
 const BACKEND_PORT = 8010;
 const FRONTEND_PORT = 3100;
 
+// 本机开发复用系统 Edge（不下载浏览器）；CI 传 PLAYWRIGHT_CHANNEL=chromium
+const CHANNEL = process.env.PLAYWRIGHT_CHANNEL ?? "msedge";
+
 process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
 export default defineConfig({
@@ -16,7 +19,7 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"]],
   use: {
-    channel: "msedge",
+    channel: CHANNEL,
     baseURL: `http://127.0.0.1:${FRONTEND_PORT}`,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -24,7 +27,7 @@ export default defineConfig({
   projects: [
     {
       name: "edge",
-      use: { ...devices["Desktop Chrome"], channel: "msedge" },
+      use: { ...devices["Desktop Chrome"], channel: CHANNEL },
     },
   ],
   webServer: [
@@ -35,7 +38,7 @@ export default defineConfig({
       timeout: 60_000,
       env: {
         CAUSALAB_DATA_DIR: "../backend/data-e2e",
-      } as Record<string, string>,
+      } as Record<string, string>, // webServer cwd = frontend，故 ../backend 即仓库内 backend 目录
     },
     {
       command: `npx next dev --port ${FRONTEND_PORT}`,

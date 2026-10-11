@@ -1,0 +1,53 @@
+# CausaLab 一键部署编排。
+# 注意：本机（Windows，无 Docker 且 Docker Hub 不可达）无法运行/验证此文件，
+#      「docker compose up」属于【未在本机验证】项。开发与单机使用推荐直接跑
+#      后端 uvicorn + 前端 next（见 README 的本地启动方式）。
+#
+# 用法（在已安装 Docker 的机器上）：
+#   docker compose up --build
+#   访问 http://localhost:3000
+#
+# 数据库默认使用 SQLite（挂载卷持久化）。如需 PostgreSQL：
+#   1. 取消 postgres 服务与 backend 的 CAUSALAB_DB_URL 注释
+#   2. PostgreSQL 集成同样【未在本机验证】
+
+services:
+  backend:
+    build: ./backend
+    container_name: causalab-backend
+    volumes:
+      - causalab-data:/app/data
+    environment:
+      - CAUSALAB_DATA_DIR=/app/data
+      # ---- 如需 PostgreSQL（未在本机验证）----
+      # CAUSALAB_DB_URL=postgresql+psycopg://causalab:causalab@postgres:5432/causalab
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: causalab-frontend
+    environment:
+      - API_PROXY_TARGET=http://backend:8000
+      - NEXT_TELEMETRY_DISABLED=1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ---- 如需 PostgreSQL（未在本机验证）----
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: causalab
+  #     POSTGRES_PASSWORD: causalab
+  #     POSTGRES_DB: causalab
+  #   volumes:
+  #     - causalab-pg:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+volumes:
+  causalab-data:
+  # causalab-pg:
