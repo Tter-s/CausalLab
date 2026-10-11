@@ -150,7 +150,7 @@ CausalLab/
 └── .github/workflows/ci.yml
 ```
 
-更多设计细节见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) 与 [API.md](docs/API.md)；开发进度与遗留问题见 [PROGRESS.md](docs/PROGRESS.md)。
+更多设计细节见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) 与 [API.md](docs/API.md)。
 
 ## 许可证
 

@@ -27,7 +27,7 @@
 CausalLab/
 ├── 启动CausaLab.bat          # 双击启动前后端（自动清端口+等就绪+开浏览器）
 ├── README.md / LICENSE / docker-compose.yml
-├── docs/  ARCHITECTURE.md / API.md / PROGRESS.md（进度+遗留+迭代记录）
+├── docs/  ARCHITECTURE.md / API.md（设计决策 + 接口）
 ├── backend/
 │   ├── app/api/        # kd / ml / dtm / ta / cross(时间线等) / ai / auth / settings / data
 │   ├── app/models/     # 37 张表（base=Base+utcnow；auth=会话表）
@@ -90,7 +90,7 @@ cd backend  && uv run python scripts/smoke_no_ai.py   # 无 AI 冒烟（需 8000
 ## 7. 遗留问题现状
 
 - ~~学习步骤细分~~ ✅（第八轮前）~~国际化~~ ✅ ~~品牌图标~~ ✅ ~~时间线游标分页~~ ✅ ~~认证~~ ✅ ~~回忆时长~~ ✅ ~~依赖传播~~ ✅ ~~死代码清理~~ ✅ ~~AI 真实冒烟~~ ✅（第九次迭代：DeepSeek 测试连接 577ms + 端到端诊断 source=ai 实测通过）
-- **遗留清零**。另有 6 条"未在本机验证项"（Docker/PG/MiMo/Moonshot/OpenAI 官方/CI 真跑等，环境限制，见 PROGRESS 表格）
+- **遗留清零**。另有 6 条"未在本机验证项"（Docker/PG/MiMo/Moonshot/OpenAI 官方/CI 真跑等，环境限制）
 
 ## 8. 踩过的坑（避免重蹈）
 
@@ -107,7 +107,7 @@ cd backend  && uv run python scripts/smoke_no_ai.py   # 无 AI 冒烟（需 8000
 
 ## 9. 给新对话的建议开场
 
-1. 先看 `docs/PROGRESS.md`（已完成/遗留/迭代记录）与 `docs/ARCHITECTURE.md`（设计决策）。
+1. 先看 `docs/ARCHITECTURE.md`（设计决策）与 `README.md`（功能、用法、目录结构）。
 2. 改后端 → 跑 pytest+ruff+mypy；改前端 → tsc+eslint+vitest+build；涉及流程 → 跑 E2E。
 3. 新增 i18n 文案记得登记词条（§6.6），否则 Vitest 覆盖测试会失败——这是故意的防退化设计。
 4. 提交信息用中文、一次迭代一个 commit（历史示例见 `git log`）。
