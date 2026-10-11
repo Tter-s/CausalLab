@@ -2,7 +2,7 @@
 /** 设置：AI 服务（Provider/Key/预算/隐私）、数据管理（导出/导入/演示/清空）、外观。 */
 import * as React from "react";
 import { toast } from "sonner";
-import { Database, KeyRound, Plug, ShieldCheck, Trash2 } from "lucide-react";
+import { Database, KeyRound, LogOut, Plug, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { PageHeader, ConfirmDialog } from "@/components/layout/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { useApi } from "@/lib/useApi";
 import { useTheme } from "next-themes";
 import { fmtDateTime } from "@/lib/format";
 import { useT } from "@/lib/i18n";
+import type { AuthStatus } from "@/lib/types";
 import type { AIConfig, UsageSummary } from "@/lib/types";
 
 const PROVIDER_KEYS = ["none", "deepseek", "mimo", "moonshot", "openai-compat", "mock"] as const;
@@ -41,6 +42,9 @@ export default function SettingsPage() {
   const [testing, setTesting] = React.useState(false);
   const [wipeOpen, setWipeOpen] = React.useState(false);
   const [demoOpen, setDemoOpen] = React.useState(false);
+  const authStatus = useApi<AuthStatus>("/auth/status");
+  const [secForm, setSecForm] = React.useState({ newPassword: "", confirm: "", oldPassword: "" });
+  const [secBusy, setSecBusy] = React.useState(false);
 
   React.useEffect(() => {
     if (cfg.data) {
@@ -76,6 +80,51 @@ export default function SettingsPage() {
     });
     toast.success(t("AI 设置已保存"));
     void cfg.refresh();
+  };
+
+  const enableProtection = async () => {
+    if (secForm.newPassword.length < 6) { toast.error(t("密码至少 6 位。")); return; }
+    if (secForm.newPassword !== secForm.confirm) { toast.error(t("两次输入的密码不一致。")); return; }
+    setSecBusy(true);
+    try {
+      await post("/auth/setup", { password: secForm.newPassword });
+      toast.success(t("密码保护已启用。"));
+      setSecForm({ newPassword: "", confirm: "", oldPassword: "" });
+      void authStatus.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("操作失败"));
+    } finally { setSecBusy(false); }
+  };
+
+  const changePassword = async () => {
+    if (secForm.newPassword.length < 6) { toast.error(t("密码至少 6 位。")); return; }
+    if (secForm.newPassword !== secForm.confirm) { toast.error(t("两次输入的密码不一致。")); return; }
+    setSecBusy(true);
+    try {
+      await post("/auth/change-password", { old_password: secForm.oldPassword, new_password: secForm.newPassword });
+      toast.success(t("密码已修改。"));
+      setSecForm({ newPassword: "", confirm: "", oldPassword: "" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("操作失败"));
+    } finally { setSecBusy(false); }
+  };
+
+  const disableProtection = async () => {
+    if (!secForm.oldPassword) { toast.error(t("请输入当前密码以确认。")); return; }
+    setSecBusy(true);
+    try {
+      await post("/auth/disable", { password: secForm.oldPassword });
+      toast.success(t("密码保护已关闭。"));
+      setSecForm({ newPassword: "", confirm: "", oldPassword: "" });
+      void authStatus.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("操作失败"));
+    } finally { setSecBusy(false); }
+  };
+
+  const logout = async () => {
+    await post("/auth/logout").catch(() => undefined);
+    window.location.href = "/login";
   };
 
   const testConnection = async () => {
@@ -131,6 +180,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="ai">
         <TabsList>
           <TabsTrigger value="ai"><Plug className="h-4 w-4" /> {t("AI 服务")}</TabsTrigger>
+          <TabsTrigger value="security"><ShieldCheck className="h-4 w-4" /> {t("安全")}</TabsTrigger>
           <TabsTrigger value="data"><Database className="h-4 w-4" /> {t("数据管理")}</TabsTrigger>
           <TabsTrigger value="appearance">{t("外观")}</TabsTrigger>
         </TabsList>
@@ -208,6 +258,71 @@ export default function SettingsPage() {
           </Card>
 
           <UsageCard usage={usage} budget={Number(form.monthly_budget) || 0} />
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="h-4 w-4" /> {t("登录密码保护")}</CardTitle>
+              <CardDescription>
+                {authStatus.data?.enabled
+                  ? t("已启用：所有 API 访问需要登录（会话 30 天有效）。适合把 CausaLab 暴露到局域网/公网时使用。")
+                  : t("未启用：默认本机单人模式，打开即用。若要把 CausaLab 暴露到局域网/公网，建议启用密码保护。")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!authStatus.data?.enabled ? (
+                <div className="max-w-sm space-y-3">
+                  <div>
+                    <Label>{t("设置密码（至少 6 位）")}</Label>
+                    <Input type="password" value={secForm.newPassword} onChange={(e) => setSecForm({ ...secForm, newPassword: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>{t("确认密码")}</Label>
+                    <Input type="password" value={secForm.confirm} onChange={(e) => setSecForm({ ...secForm, confirm: e.target.value })} />
+                  </div>
+                  <Button disabled={secBusy} onClick={() => void enableProtection()}>
+                    <ShieldCheck /> {t("启用密码保护")}
+                  </Button>
+                </div>
+              ) : (
+                <div className="max-w-sm space-y-5">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="success">{t("已启用")}</Badge>
+                    <Button variant="outline" size="sm" onClick={() => void logout()}>
+                      <LogOut /> {t("退出登录")}
+                    </Button>
+                  </div>
+                  <div className="space-y-3 rounded-lg border p-4">
+                    <p className="text-sm font-medium">{t("修改密码")}</p>
+                    <div>
+                      <Label className="text-xs">{t("当前密码")}</Label>
+                      <Input type="password" value={secForm.oldPassword} onChange={(e) => setSecForm({ ...secForm, oldPassword: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{t("新密码（至少 6 位）")}</Label>
+                      <Input type="password" value={secForm.newPassword} onChange={(e) => setSecForm({ ...secForm, newPassword: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{t("确认新密码")}</Label>
+                      <Input type="password" value={secForm.confirm} onChange={(e) => setSecForm({ ...secForm, confirm: e.target.value })} />
+                    </div>
+                    <Button size="sm" disabled={secBusy} onClick={() => void changePassword()}>{t("修改密码")}</Button>
+                  </div>
+                  <div className="space-y-3 rounded-lg border border-destructive/30 p-4">
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-destructive"><ShieldOff className="h-4 w-4" /> {t("关闭密码保护")}</p>
+                    <p className="text-xs text-muted-foreground">{t("关闭后任何人都可以直接访问（包括通过网络的访问）。")}</p>
+                    <div>
+                      <Input type="password" placeholder={t("当前密码")} value={secForm.oldPassword} onChange={(e) => setSecForm({ ...secForm, oldPassword: e.target.value })} />
+                    </div>
+                    <Button variant="destructive" size="sm" disabled={secBusy} onClick={() => void disableProtection()}>
+                      {t("确认关闭")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">

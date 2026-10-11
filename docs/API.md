@@ -13,6 +13,21 @@
   - `402 ai_budget_exceeded` — 月度预算用尽
   - `502 ai_upstream_error / ai_response_invalid` — 云端失败/输出不合法（诊断类端点会自动回退规则分析）
 
+## 认证（可选密码保护，默认关闭）
+
+启用后除 `/api/health` 与 `/api/auth/*` 外，所有端点要求有效会话 Cookie（`causalab_session`，HttpOnly）。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/auth/status` | `{enabled, authed}`（公开） |
+| POST | `/api/auth/setup` | 首次启用 `{password}`（仅未启用时可用，201） |
+| POST | `/api/auth/login` | 登录 `{password}` → 设置会话 Cookie；限流 10 次/分/IP（超出 429） |
+| POST | `/api/auth/logout` | 登出并清除 Cookie |
+| POST | `/api/auth/disable` | 关闭保护 `{password}`（忘记会话时的恢复路径，需密码验证） |
+| POST | `/api/auth/change-password` | 修改密码 `{old_password, new_password}`（需有效会话） |
+
+未认证访问受保护端点 → `401 {"detail": {"code": "auth_required"}}`；前端自动跳转 `/login`。
+
 ## 元信息
 
 | 方法 | 路径 | 说明 |

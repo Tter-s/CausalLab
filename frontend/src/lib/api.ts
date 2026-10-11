@@ -60,6 +60,17 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     if (res.status === 428 && (detail as AIConfirmRequiredBody)?.code === "ai_confirm_required") {
       throw new AIConfirmRequiredError(detail as AIConfirmRequiredBody);
     }
+    // 密码保护已启用且无有效会话 → 跳转登录页（登录页自身与 auth 端点除外）
+    if (
+      res.status === 401 &&
+      (detail as { code?: string })?.code === "auth_required" &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/login") &&
+      !path.startsWith("/auth/")
+    ) {
+      window.location.href = "/login";
+      throw new ApiError(401, { message: "需要登录" });
+    }
     // 5xx 且无结构化 detail：后端不可达（Next 代理 ECONNREFUSED）或后端内部错误，
     // 两种情况都给出连接指引 + 保留技术信息
     if (res.status >= 500 && typeof detail === "string") {

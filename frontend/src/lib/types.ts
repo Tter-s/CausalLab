@@ -469,6 +469,12 @@ export interface Dashboard {
   demo_mode: boolean;
 }
 
+// ---------- 认证 ----------
+export interface AuthStatus {
+  enabled: boolean;
+  authed: boolean;
+}
+
 // ---------- 设置 / AI ----------
 export interface AIConfig {
   provider: string;

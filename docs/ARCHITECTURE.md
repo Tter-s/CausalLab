@@ -79,6 +79,14 @@ run_structured():  统一管道 = 隐私确认(428) → 预算检查(402) → �
 - **国际化接口**：zh 字典完整、en 覆盖导航与通用操作（任务书要求"预留接口"），`useT()` + localStorage；
 - **Next 16 适配**：动态路由页用 Suspense 边界（PPR 流式渲染）；`allowedDevOrigins` 允许 127.0.0.1 访问 dev 资源；预渲染期间禁止直接读时钟（计时状态在 effect 中初始化）。
 
+## 4.5 可选认证层（services/auth.py）
+
+个人本机默认无需登录；设置页启用后，FastAPI 中间件对 `/api/*` 做会话检查（公开端点白名单在 `AUTH_PUBLIC_PATHS`）：
+- 密码 bcrypt 哈希存于 settings 表（key=auth_config）；会话令牌随机 32 字节，库存 SHA-256，TTL 30 天，登录时顺带清理过期行；
+- 中间件**先关闭自身 DB 会话再放行路由**，避免与路由写事务争 SQLite 锁；
+- 登录限流为进程内存实现（10 次/分/IP），重启即清零——公网部署建议再加反向代理级限流；
+- 前端 `api.ts` 对 401/auth_required 统一跳转 `/login`（登录页独立布局，AppShell 对 /login 不渲染侧边栏）。
+
 ## 5. 测试策略
 
 | 层 | 工具 | 覆盖重点 |

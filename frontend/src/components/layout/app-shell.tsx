@@ -240,6 +240,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const t = useT();
+  const pathname = usePathname();
+  // 登录页独立布局（无侧边栏）
+  if (pathname === "/login") {
+    return <>{children}</>;
+  }
   return (
       <div className="flex min-h-screen">
         {/* 桌面侧边栏 */}

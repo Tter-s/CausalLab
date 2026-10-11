@@ -8,8 +8,13 @@ const API = "http://127.0.0.1:8010/api";
 
 test.describe.serial("核心流程", () => {
   test.beforeEach(async () => {
-    // 清空业务数据，保证幂等（设置保留）
-    await fetch(`${API}/data/all`, { method: "DELETE" });
+    // 清空业务数据，保证幂等（设置保留）；若上一用例遗留启用的密码保护则先关闭
+    await fetch(`${API}/auth/disable`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "e2e-pass-123" }),
+    }).catch(() => {});
+    await fetch(`${API}/data/all`, { method: "DELETE" }).catch(() => {});
   });
 
   test("仪表盘显示真实统计与模块导航", async ({ page }) => {
@@ -160,5 +165,42 @@ test.describe.serial("核心流程", () => {
     await expect(page.getByText(/Provider 配置/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/所有 AI 请求经本服务端代理/)).toBeVisible();
     await expect(page.getByText("本月用量")).toBeVisible();
+  });
+
+  test("认证：启用后强制登录，设置页可关闭", async ({ page }) => {
+    // 通过 API 启用密码保护
+    const setup = await fetch(`${API}/auth/setup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "e2e-pass-123" }),
+    });
+    expect(setup.status).toBe(201);
+
+    // 打开任意页 → 被重定向到登录页
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.waitForURL("**/login", { timeout: 15_000 });
+    await expect(page.getByText(/请输入访问密码|Enter your access password/)).toBeVisible({ timeout: 15_000 });
+
+    // 错误密码提示
+    await page.locator("#login-password").fill("wrong-pass-9");
+    await page.getByRole("button", { name: /解锁|Unlock/ }).click();
+    await expect(page.getByText(/密码错误|Wrong password/)).toBeVisible({ timeout: 10_000 });
+
+    // 正确密码 → 进入仪表盘
+    await page.locator("#login-password").fill("e2e-pass-123");
+    await page.getByRole("button", { name: /解锁|Unlock/ }).click();
+    await page.waitForURL("**/", { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "概览" })).toBeVisible({ timeout: 30_000 });
+
+    // 设置 → 安全 → 关闭密码保护
+    await page.goto("/settings", { waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: /安全|Security/ }).click();
+    await page.getByPlaceholder(/当前密码|Current password/).last().fill("e2e-pass-123");
+    await page.getByRole("button", { name: /确认关闭|Disable/ }).click();
+    await expect(page.getByText(/密码保护已关闭|Password protection disabled/)).toBeVisible({ timeout: 10_000 });
+
+    // 关闭后无需登录
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "概览" })).toBeVisible({ timeout: 30_000 });
   });
 });

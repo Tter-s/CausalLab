@@ -1,4 +1,5 @@
 from app.models.ai import AIUsageLog, Setting
+from app.models.auth import AuthSession
 from app.models.base import Base
 from app.models.cross import (
     EntityLink,
@@ -24,6 +25,7 @@ from app.models.ta import ImprovementAction, Project, ProjectReview, Task, TaskD
 __all__ = [
     "Base",
     "AIUsageLog",
+    "AuthSession",
     "Setting",
     "EventLog",
     "EvidenceRecord",

@@ -57,7 +57,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    from app.api import ai, cross, data, dtm, kd, ml, ta
+    from app.api import ai, auth, cross, data, dtm, kd, ml, ta
     from app.api import settings as settings_api
 
     app.include_router(kd.router, prefix="/api")
@@ -67,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(cross.router, prefix="/api")
     app.include_router(settings_api.router, prefix="/api")
     app.include_router(ai.router, prefix="/api")
+    app.include_router(auth.router, prefix="/api")
     app.include_router(data.router, prefix="/api")
 
     @app.get("/api/health", tags=["meta"])
@@ -78,6 +79,31 @@ def create_app() -> FastAPI:
         from app.api.deps import ai_error_to_http
 
         return JSONResponse(status_code=ai_error_to_http(exc).status_code, content=ai_error_to_http(exc).detail)
+
+    # ---------- 可选密码保护中间件（默认关闭；启用后 /api/* 需要会话） ----------
+    from starlette.requests import Request as StarletteRequest
+
+    from app.db import SessionLocal
+    from app.services import auth as auth_service
+
+    @app.middleware("http")
+    async def optional_auth_middleware(request: StarletteRequest, call_next):
+        path = request.url.path
+        if not path.startswith("/api") or request.method == "OPTIONS" or path in auth_service.AUTH_PUBLIC_PATHS:
+            return await call_next(request)
+        # 先完成检查并关闭本中间件的会话，再放行路由（避免与路由写事务争 SQLite 锁）
+        allowed = False
+        with SessionLocal() as db:
+            if not auth_service.is_enabled(db):
+                allowed = True
+            else:
+                allowed = auth_service.validate_session(db, request.cookies.get(auth_service.SESSION_COOKIE))
+        if allowed:
+            return await call_next(request)
+        return JSONResponse(
+            status_code=401,
+            content={"detail": {"code": "auth_required", "message": "需要登录后访问。"}},
+        )
 
     return app
 
