@@ -28,12 +28,25 @@ export class AIConfirmRequiredError extends Error {
   }
 }
 
+/** 后端不可达时的统一提示（含修复指引）。 */
+export const BACKEND_UNREACHABLE_MESSAGE =
+  "无法连接后端 API（127.0.0.1:8000）。\n" +
+  "请确认后端服务已启动：双击仓库根目录的「启动CausaLab.bat」，\n" +
+  "或在 backend 目录运行：uv run uvicorn app.main:app --port 8000\n" +
+  "然后点击下方「重试」刷新。";
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-    cache: "no-store",
-    ...init,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      cache: "no-store",
+      ...init,
+    });
+  } catch {
+    // 网络层失败：浏览器 fetch 抛 TypeError（后端进程未启动 / 代理目标拒绝连接）
+    throw new ApiError(0, { message: BACKEND_UNREACHABLE_MESSAGE });
+  }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   let data: unknown = null;
@@ -46,6 +59,13 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const detail = (data as { detail?: unknown })?.detail ?? data;
     if (res.status === 428 && (detail as AIConfirmRequiredBody)?.code === "ai_confirm_required") {
       throw new AIConfirmRequiredError(detail as AIConfirmRequiredBody);
+    }
+    // 5xx 且无结构化 detail：后端不可达（Next 代理 ECONNREFUSED）或后端内部错误，
+    // 两种情况都给出连接指引 + 保留技术信息
+    if (res.status >= 500 && typeof detail === "string") {
+      throw new ApiError(res.status, {
+        message: `${BACKEND_UNREACHABLE_MESSAGE}\n（技术信息：HTTP ${res.status} ${detail.slice(0, 200)}）`,
+      });
     }
     throw new ApiError(res.status, detail);
   }

@@ -59,9 +59,12 @@ export function EmptyState({
 }
 
 export function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => void }) {
+  const unreachable = error.message.includes("无法连接后端");
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-10 text-center">
-      <p className="font-medium text-destructive">{error.message || "出错了"}</p>
+    <div className={`flex flex-col items-center justify-center rounded-xl border px-6 py-10 text-center ${unreachable ? "border-warning/40 bg-warning/5" : "border-destructive/30 bg-destructive/5"}`}>
+      <p className={`whitespace-pre-line font-medium ${unreachable ? "text-warning" : "text-destructive"}`}>
+        {error.message || "出错了"}
+      </p>
       {onRetry && (
         <Button variant="outline" size="sm" className="mt-3" onClick={onRetry}>
           重试

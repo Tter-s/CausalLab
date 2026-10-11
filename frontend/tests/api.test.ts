@@ -40,6 +40,47 @@ describe("api client", () => {
     vi.unstubAllGlobals();
   });
 
+  it("shows friendly guidance when backend is unreachable (network failure)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    const { get, BACKEND_UNREACHABLE_MESSAGE } = await import("@/lib/api");
+    try {
+      await get("/dashboard");
+      expect.unreachable("should throw");
+    } catch (e) {
+      expect((e as Error).message).toContain("无法连接后端 API");
+      expect((e as Error).message).toBe(BACKEND_UNREACHABLE_MESSAGE);
+    }
+    vi.unstubAllGlobals();
+  });
+
+  it("shows friendly guidance when proxy returns 500 with plain text (backend down)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("Internal Server Error", { status: 500 })),
+    );
+    const { get } = await import("@/lib/api");
+    try {
+      await get("/dashboard");
+      expect.unreachable("should throw");
+    } catch (e) {
+      expect((e as Error).message).toContain("无法连接后端 API");
+      expect((e as Error).message).toContain("HTTP 500");
+    }
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps structured FastAPI 500 errors as-is (not masked as unreachable)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: { message: "业务错误" } }), { status: 500 }),
+      ),
+    );
+    const { get } = await import("@/lib/api");
+    await expect(get("/x")).rejects.toMatchObject({ message: "业务错误" });
+    vi.unstubAllGlobals();
+  });
+
   it("ApiError falls back to generic message", () => {
     const err = new ApiError(500, "plain error");
     expect(err.message).toBe("plain error");
