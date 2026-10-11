@@ -236,8 +236,9 @@ async def run_structured[T: BaseModel](
             raise AIBudgetExceeded()
 
     provider = get_provider(db, task_type)
+    schema_json = json.dumps(schema.model_json_schema(), ensure_ascii=False)
     request = AIRequest(
-        system=f"{system}\n\n{JSON_INSTRUCTION}",
+        system=f"{system}\n\n{JSON_INSTRUCTION}\n字段结构（JSON Schema）：{schema_json}",
         user=user,
         task_type=task_type,
         temperature=None,

@@ -1,7 +1,7 @@
 # CausaLab 交接文档（HANDOFF）
 
 > 用途：在新对话/新会话中快速恢复对 CausaLab 项目的完整上下文。读完本文件即可继续开发，细节再查 `docs/` 与 `README.md`。
-> 最后更新：2026-10-11（第八次迭代后）
+> 最后更新：2026-10-11（第九次迭代后）
 
 ---
 
@@ -41,6 +41,7 @@ CausalLab/
     ├── src/app/        # 12 路由：/ /kd /ml /dtm /dtm/[id] /ta /ta/[id] /timeline
     │                   #        /hypotheses /loops /settings /login
     ├── src/components/ # layout/(app-shell+shared) ui/(手写 shadcn 风格组件) brand-mark
+    │                   # dev-tools-zh（仅 dev：汉化+拖拽 Next Dev Tools，见 §8 末条）
     ├── src/lib/        # api.ts(含428/401处理) useApi.ts i18n.tsx(双语) i18n-page-strings.ts
     │                   # ai-client.tsx(428确认流) format.ts(日期语言) types.ts
     ├── e2e/flows.spec.ts   # 8 个场景（含认证流程）
@@ -61,8 +62,10 @@ cd frontend && npx playwright test        # E2E，自动拉起隔离前后端（
 cd backend  && uv run python scripts/smoke_no_ai.py   # 无 AI 冒烟（需 8000 在运行）
 ```
 
-当前基线：**pytest 60/60 · Vitest 19/19 · E2E 8/8 · 冒烟 24/24 · ruff/mypy/eslint 全绿 · build 12 路由成功**。
+当前基线：**pytest 60/60 · Vitest 19/19 · E2E 8/8 · 冒烟 24/24 · AI 测试连接 ✅ · ruff/mypy/eslint 全绿 · build 12 业务路由成功**。
 服务当前在 8000/3000 运行中；重启可用 bat 或先 `npx kill-port 8000 3000`。
+注意：E2E 需先关 :3000 dev server（Next 16 同项目不允许第二个 dev server）；
+冒烟脚本若在已配置真实 AI 时运行，第 0/1 组各 1 项按"无 AI 前提"断言会报失败，属预期。
 
 ## 5. 机器硬约束（务必遵守，详见原任务书第十一节）
 
@@ -86,9 +89,8 @@ cd backend  && uv run python scripts/smoke_no_ai.py   # 无 AI 冒烟（需 8000
 
 ## 7. 遗留问题现状
 
-- ~~学习步骤细分~~ ✅（第八轮前）~~国际化~~ ✅ ~~品牌图标~~ ✅ ~~时间线游标分页~~ ✅ ~~认证~~ ✅ ~~回忆时长~~ ✅ ~~依赖传播~~ ✅ ~~死代码清理~~ ✅
-- **仅剩 1 条**：AI 真实冒烟未做（等用户提供 DeepSeek/Moonshot Key；填入设置页点“测试连接”即可，代码已就绪）
-- 另有 6 条“未在本机验证项”（Docker/PG/OpenAI 官方/CI 真跑等，环境限制，见 PROGRESS 表格）
+- ~~学习步骤细分~~ ✅（第八轮前）~~国际化~~ ✅ ~~品牌图标~~ ✅ ~~时间线游标分页~~ ✅ ~~认证~~ ✅ ~~回忆时长~~ ✅ ~~依赖传播~~ ✅ ~~死代码清理~~ ✅ ~~AI 真实冒烟~~ ✅（第九次迭代：DeepSeek 测试连接 577ms + 端到端诊断 source=ai 实测通过）
+- **遗留清零**。另有 6 条"未在本机验证项"（Docker/PG/MiMo/Moonshot/OpenAI 官方/CI 真跑等，环境限制，见 PROGRESS 表格）
 
 ## 8. 踩过的坑（避免重蹈）
 
@@ -98,6 +100,10 @@ cd backend  && uv run python scripts/smoke_no_ai.py   # 无 AI 冒烟（需 8000
 - **fsrs 官方库**：要求 UTC aware datetime；`Card.to_dict()` 存 JSON、`from_dict` 重建（见 scheduling.py 适配层）
 - **Alembic**：alembic.ini 不能写中文注释（GBK 解码崩）；SQLite 迁移用 `render_as_batch`
 - **测试隔离**：pytest 共享一个临时库（conftest 设 `CAUSALAB_DATA_DIR`）；写测试注意跨用例状态污染（AI 配置、限流器、会话 cookie 都有前车之鉴）；E2E beforeEach 会先关认证+清业务数据
+- **run_structured 提示词必须带 JSON Schema**（第九次迭代修的真 Bug）：只写"符合字段结构"而不给 schema，Mock 测不出、真实模型必然校验失败回退规则；schema 以 `model_json_schema()` 附在系统提示词
+- **Next 16 同项目只允许一个 dev server**：:3000 在跑时 E2E（:3100）直接启动失败；跑 E2E 前先关 :3000
+- **AI 配置填错的表现**：base_url 误填 `/anthropic`（Anthropic 协议端点）或 model_id 误填 `deepseek`（合法名是 deepseek-chat/deepseek-reasoner）都会"测试连接"失败；错误详情被包装，诊断可直连 API 看状态码
+- **Next Dev Tools（nextjs-portal）**：open shadow DOM；菜单开关绑定在 click（非 pointerdown）；N 按钮容器是 `.nextjs-toast`（fixed），菜单卡片 `[role="menu"]` 自身就是 fixed 元素（不在其祖先链上）；dev-tools-zh.tsx 基于这些结构做汉化+拖拽，Next 大版本升级若失效会静默退化为无增强（不影响应用）
 
 ## 9. 给新对话的建议开场
 

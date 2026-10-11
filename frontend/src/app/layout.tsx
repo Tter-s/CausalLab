@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
+import { DevToolsZh } from "@/components/dev-tools-zh";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AppShell>{children}</AppShell>
           <Toaster richColors position="top-center" />
+          {process.env.NODE_ENV === "development" && <DevToolsZh />}
         </ThemeProvider>
       </body>
     </html>
