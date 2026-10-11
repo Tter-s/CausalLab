@@ -262,7 +262,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <UsageCard usage={usage} budget={Number(form.monthly_budget) || 0} />
+          <UsageCard usage={usage} budget={Number(form.monthly_budget) || 0} onCleared={() => usage.refresh()} />
         </TabsContent>
 
         <TabsContent value="security" className="space-y-4">
@@ -412,8 +412,17 @@ export default function SettingsPage() {
   );
 }
 
-function UsageCard({ usage, budget }: { usage: { data: UsageSummary | null; loading: boolean }; budget: number }) {
+function UsageCard({
+  usage,
+  budget,
+  onCleared,
+}: {
+  usage: { data: UsageSummary | null; loading: boolean };
+  budget: number;
+  onCleared: () => Promise<void> | void;
+}) {
   const t = useT();
+  const [clearOpen, setClearOpen] = React.useState(false);
   if (usage.loading && !usage.data) return null;
   const u = usage.data;
   if (!u) return null;
@@ -427,9 +436,14 @@ function UsageCard({ usage, budget }: { usage: { data: UsageSummary | null; load
             {t("{n} 次调用 · 输入 {a} tokens · 输出 {b} tokens", { n: u.total_calls, a: u.total_prompt_tokens.toLocaleString(), b: u.total_completion_tokens.toLocaleString() })}
           </CardDescription>
         </div>
-        <Badge variant={overBudget ? "destructive" : u.total_cost > 0 ? "warning" : "muted"}>
-          估算费用 ¥{u.total_cost.toFixed(4)}{budget > 0 && ` / ${t("预算")} ¥${budget}`}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {u.rows.length > 0 && (
+            <Button variant="outline" onClick={() => setClearOpen(true)}><Trash2 /> {t("清空记录")}</Button>
+          )}
+          <Badge variant={overBudget ? "destructive" : u.total_cost > 0 ? "warning" : "muted"}>
+            估算费用 ¥{u.total_cost.toFixed(4)}{budget > 0 && ` / ${t("预算")} ¥${budget}`}
+          </Badge>
+        </div>
       </CardHeader>
       <CardContent>
         {u.rows.length === 0 ? (
@@ -465,6 +479,19 @@ function UsageCard({ usage, budget }: { usage: { data: UsageSummary | null; load
           </Table>
         )}
       </CardContent>
+      <ConfirmDialog
+        open={clearOpen}
+        onOpenChange={setClearOpen}
+        title={t("清空全部用量记录？")}
+        description={t("所有 API 调用日志与累计费用将被删除（AI 配置与业务数据不受影响）。此操作不可撤销。")}
+        confirmText={t("清空")}
+        destructive
+        onConfirm={async () => {
+          await del("/settings/ai/usage");
+          toast.success(t("用量记录已清空"));
+          await onCleared();
+        }}
+      />
     </Card>
   );
 }

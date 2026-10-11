@@ -97,3 +97,34 @@ def test_test_connection_endpoint(client):
     client.put("/api/settings/ai", json={"provider": "none", "model_id": "", "monthly_budget": 0})
     r2 = client.post("/api/settings/ai/test")
     assert r2.json()["ok"] is False
+
+
+def test_clear_usage_endpoint(client):
+    """清空用量记录：记录全删、返回删除数，AI 配置不受影响。"""
+    import app.db as dbmod
+    from app.models import AIUsageLog
+    from app.services.base import utcnow
+
+    session = dbmod.SessionLocal()
+    session.add(AIUsageLog(provider="deepseek", model="m", task_type="general",
+                           prompt_tokens=10, completion_tokens=5,
+                           cost_estimated=0.01, latency_ms=1, ok=True, created_at=utcnow()))
+    session.add(AIUsageLog(provider="deepseek", model="m", task_type="general",
+                           prompt_tokens=20, completion_tokens=0,
+                           cost_estimated=0.0, latency_ms=2, ok=False, error="x", created_at=utcnow()))
+    session.commit()
+    session.close()
+
+    # 先确认有记录
+    assert client.get("/api/settings/ai/usage").json()["total_calls"] >= 2
+
+    r = client.delete("/api/settings/ai/usage")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True and body["deleted"] >= 2
+
+    # 记录已清空；AI 配置原样保留
+    usage = client.get("/api/settings/ai/usage").json()
+    assert usage["total_calls"] == 0 and usage["rows"] == []
+    cfg = client.get("/api/settings/ai")
+    assert cfg.status_code == 200

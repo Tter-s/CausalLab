@@ -114,6 +114,14 @@ def ai_usage(month: str | None = None, db: Session = Depends(get_db)):
     )
 
 
+@router.delete("/ai/usage")
+def clear_ai_usage(db: Session = Depends(get_db)):
+    """清空全部 AI 用量记录（AI 配置与业务数据不受影响）。"""
+    deleted = db.query(AIUsageLog).delete(synchronize_session=False)
+    db.commit()
+    return {"ok": True, "deleted": deleted}
+
+
 @router.get("/budget")
 def budget_status(db: Session = Depends(get_db)):
     cfg = get_ai_config(db)
