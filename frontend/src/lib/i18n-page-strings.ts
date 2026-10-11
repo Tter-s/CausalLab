@@ -464,6 +464,7 @@ export const enPageStrings: Record<string, string> = {
   "每月预算上限（元，0 = 不设限）": "Monthly budget cap (CNY, 0 = unlimited)",
   "Prompt 价格（元/百万 token，用于费用估算）": "Prompt price (CNY / M tokens, for cost estimation)",
   "输出价格（元/百万 token）": "Completion price (CNY / M tokens)",
+  "参考价（DeepSeek 官方，2026-10 查询）：deepseek-flash 输入缓存未命中 ¥1/百万（高峰 ¥2），输出 ¥4/百万（高峰 ¥8）；缓存命中与空闲时段更便宜。费用估算按高峰价计，偏保守。": "Reference prices (DeepSeek official, checked 2026-10): deepseek-flash input (cache miss) ¥1/M (peak ¥2), output ¥4/M (peak ¥8); cache hits and off-peak hours are cheaper. Cost estimates use peak prices to stay conservative.",
   "自动确认发送": "Auto-confirm sending",
   "关闭时，每次向云端模型发送内容前都会弹出预览让你确认（默认，推荐）。": "When off (default, recommended), every cloud request shows a preview for your confirmation first.",
   "保存设置": "Save",

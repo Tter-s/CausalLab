@@ -243,6 +243,9 @@ export default function SettingsPage() {
                   <Input type="number" min={0} step={0.1} value={form.price_completion_per_m} onChange={(e) => setForm({ ...form, price_completion_per_m: e.target.value })} />
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                {t("参考价（DeepSeek 官方，2026-10 查询）：deepseek-flash 输入缓存未命中 ¥1/百万（高峰 ¥2），输出 ¥4/百万（高峰 ¥8）；缓存命中与空闲时段更便宜。费用估算按高峰价计，偏保守。")}
+              </p>
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <p className="flex items-center gap-1.5 text-sm font-medium"><ShieldCheck className="h-4 w-4" /> {t("自动确认发送")}</p>
