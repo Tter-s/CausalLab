@@ -31,6 +31,7 @@ from app.schemas.ml import (
     ReviewLogOut,
     ReviewResultOut,
     ReviewStateOut,
+    StepBucket,
 )
 from app.services import scheduling
 from app.services.base import utcnow
@@ -62,6 +63,8 @@ def _state_out(db: Session, card_id: int, state_row: ReviewState | None) -> Revi
         lapses=lapses,
         state_str=s["state_str"],
         retrievability=s["retrievability"],
+        step=s.get("step"),
+        steps_minutes=s.get("steps_minutes"),
     )
 
 
@@ -284,6 +287,8 @@ def submit_review(payload: ReviewIn, db: Session = Depends(get_db)):
             lapses=lapses,
             state_str=summary["state_str"],
             retrievability=scheduling.retrievability_now(new_state, utcnow()),
+            step=summary.get("step"),
+            steps_minutes=summary.get("steps_minutes"),
         ),
     )
 
@@ -325,7 +330,10 @@ def ml_stats(db: Session = Depends(get_db)):
     buckets = [("≤1天", 0, 1), ("1-3天", 1, 3), ("3-7天", 3, 7), ("7-21天", 7, 21),
                ("21-60天", 21, 60), (">60天", 60, 1e9)]
     interval_dist = [IntervalBucket(label=lab, count=0) for lab, _, _ in buckets]
-    maturity = {"new": 0, "learning": 0, "review": 0}
+    maturity = {"new": 0, "learning": 0, "relearning": 0, "review": 0}
+    learning_minutes = scheduling.learning_steps_minutes()
+    relearning_minutes = scheduling.relearning_steps_minutes()
+    step_counts: dict[tuple[str, int], int] = {}
     for row in db.scalars(select(ReviewState).join(Card, Card.id == ReviewState.card_id).where(Card.suspended.is_(False))):
         if row.due_at is None:
             maturity["new"] += 1
@@ -333,10 +341,22 @@ def ml_stats(db: Session = Depends(get_db)):
         days = (row.due_at - now).total_seconds() / 86400
         st = row.state_str
         maturity[st if st in maturity else "review"] += 1
+        # 学习/重学步骤细分（step 存于 fsrs_card JSON）
+        if st in ("learning", "relearning"):
+            step_idx = row.fsrs_card.get("step")
+            minutes_list = learning_minutes if st == "learning" else relearning_minutes
+            if isinstance(step_idx, int) and 0 <= step_idx < len(minutes_list):
+                bucket_key = (st, step_idx)
+                step_counts[bucket_key] = step_counts.get(bucket_key, 0) + 1
         for i, (_lab, lo, hi) in enumerate(buckets):
             if lo <= days < hi:
                 interval_dist[i].count += 1
                 break
+    step_breakdown = [
+        StepBucket(state=st, step=idx + 1, minutes=minutes_list[idx], count=cnt)
+        for (st, idx), cnt in sorted(step_counts.items())
+        for minutes_list in ([learning_minutes] if st == "learning" else [relearning_minutes])
+    ]
 
     return MLStatsOut(
         total_cards=total_cards,
@@ -347,6 +367,7 @@ def ml_stats(db: Session = Depends(get_db)):
         reviews_per_day=[DayCount(date=k, count=v) for k, v in per_day.items()],
         interval_distribution=interval_dist,
         maturity=maturity,
+        step_breakdown=step_breakdown,
     )
 
 

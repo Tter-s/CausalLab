@@ -111,7 +111,7 @@ test.describe.serial("核心流程", () => {
     await expect(page.getByText("E2E 背面答案").first()).toBeVisible();
     await page.getByRole("button", { name: /有点费劲/ }).first().click();
     // 复习后应显示成功提示（sonner toast）
-    await expect(page.getByText(/已记录：下次/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/已记录：下次|已进入学习步骤|毕业！/)).toBeVisible({ timeout: 10_000 });
   });
 
   test("知识债务：答题一次不下结论（护栏），纠正可用", async ({ page }) => {

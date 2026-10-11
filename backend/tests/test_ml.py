@@ -83,3 +83,41 @@ def test_card_suspension_excludes_from_due(client):
     # 新卡（due 立即到期）被挂起后不应出现在队列
     due = client.get("/api/ml/due").json()
     assert all(c["id"] != cards[0] for c in due["cards"])
+
+
+def test_learning_step_breakdown(client):
+    """学习/重学步骤细分：step 索引、每步时长、毕业状态与统计细分。"""
+    deck = client.post("/api/ml/decks", json={"name": "步骤卡组"}).json()
+    c_good = client.post("/api/ml/cards", json={"deck_id": deck["id"], "front": "步骤A", "back": "B"}).json()
+    c_easy = client.post("/api/ml/cards", json={"deck_id": deck["id"], "front": "步骤B", "back": "B"}).json()
+
+    # 新卡 Good → 进入学习步骤 2/2（10 分钟后到期）
+    r = client.post("/api/ml/reviews", json={"card_id": c_good["id"], "rating": 3, "duration_ms": 1000}).json()
+    assert r["state"]["state_str"] == "learning"
+    assert r["state"]["step"] == 1
+    assert r["state"]["steps_minutes"] == [1.0, 10.0]
+
+    # 学习步骤内 Again → 回到步骤 1/2（1 分钟）
+    r2 = client.post("/api/ml/reviews", json={"card_id": c_good["id"], "rating": 1, "duration_ms": 1000}).json()
+    assert r2["state"]["state_str"] == "learning"
+    assert r2["state"]["step"] == 0
+
+    # 新卡 Easy → 直接毕业进入复习循环（无步骤）
+    r3 = client.post("/api/ml/reviews", json={"card_id": c_easy["id"], "rating": 4, "duration_ms": 1000}).json()
+    assert r3["state"]["state_str"] == "review"
+    assert r3["state"]["step"] is None
+    assert r3["state"]["steps_minutes"] is None
+
+    # 统计：maturity 含 relearning；step_breakdown 含学习步骤细分
+    stats = client.get("/api/ml/stats").json()
+    assert "relearning" in stats["maturity"]
+    step1 = [b for b in stats["step_breakdown"] if b["state"] == "learning" and b["step"] == 1]
+    assert step1 and step1[0]["minutes"] == 1.0 and step1[0]["count"] >= 1  # 步骤A 在 1 分钟步骤上
+    # 存在处于 10 分钟步骤的卡片时，其 minutes 必须正确
+    step2 = [b for b in stats["step_breakdown"] if b["state"] == "learning" and b["step"] == 2]
+    if step2:
+        assert step2[0]["minutes"] == 10.0
+
+    # 到期队列：学习步骤未到期的卡片不应出现（1 分钟后才会到期）
+    due = client.get("/api/ml/due").json()
+    assert all(c["id"] != c_good["id"] for c in due["cards"])

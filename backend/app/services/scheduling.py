@@ -57,9 +57,32 @@ def summary_from(state: dict | None, now: datetime) -> dict:
         "last_review_at": last,
         "reps": 0,  # 由调用方按 ReviewLog 计数填充
         "lapses": 0,
-        "state_str": STATE_NAMES.get(card.state, "new"),
+        # 从未复习过的卡（内部 state=Learning 但尚无任何记录）对外统一为 "new"
+        "state_str": "new" if card.last_review is None else STATE_NAMES.get(card.state, "new"),
         "retrievability": retrievability,
+        # 学习/重学步骤细分：step 为 0 起始索引；steps_minutes 为该状态下全部步骤时长（分钟）
+        "step": (card.step if card.last_review else None),
+        "steps_minutes": _steps_minutes_for(card),
     }
+
+
+def _steps_minutes_for(card) -> list[float] | None:
+    """返回卡片当前状态对应的步骤时长列表（分钟）；Review 状态或新卡返回 None。"""
+    if card.last_review is None:
+        return None
+    if card.state == FSRSState.Learning:
+        return [round(s.total_seconds() / 60, 2) for s in _scheduler.learning_steps]
+    if card.state == FSRSState.Relearning:
+        return [round(s.total_seconds() / 60, 2) for s in _scheduler.relearning_steps]
+    return None
+
+
+def learning_steps_minutes() -> list[float]:
+    return [round(s.total_seconds() / 60, 2) for s in _scheduler.learning_steps]
+
+
+def relearning_steps_minutes() -> list[float]:
+    return [round(s.total_seconds() / 60, 2) for s in _scheduler.relearning_steps]
 
 
 def next_interval_days(state: dict) -> float:

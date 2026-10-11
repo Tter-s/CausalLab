@@ -129,6 +129,10 @@ export interface ReviewState {
   lapses: number;
   state_str: string;
   retrievability: number | null;
+  /** 学习/重学步骤细分：0 起始索引（复习循环为 null） */
+  step: number | null;
+  /** 该状态下全部步骤时长（分钟），如 [1, 10] */
+  steps_minutes: number[] | null;
 }
 
 export interface DueQueue {
@@ -182,6 +186,8 @@ export interface MLStats {
   reviews_per_day: { date: string; count: number }[];
   interval_distribution: { label: string; count: number }[];
   maturity: Record<string, number>;
+  /** 学习/重学步骤细分：处于某步骤的卡片数 */
+  step_breakdown: { state: string; step: number; minutes: number; count: number }[];
 }
 
 // ---------- DTM ----------

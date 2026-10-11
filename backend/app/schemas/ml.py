@@ -57,6 +57,10 @@ class ReviewStateOut(ORMModel):
     lapses: int
     state_str: str
     retrievability: float | None = None
+    # 学习/重学步骤细分：step 为 0 起始索引（Review 状态为 None）；
+    # steps_minutes 为该状态下全部步骤时长（分钟），如 [1.0, 10.0]
+    step: int | None = None
+    steps_minutes: list[float] | None = None
 
 
 class ReviewIn(BaseModel):
@@ -90,6 +94,15 @@ class DueQueueOut(BaseModel):
     total_due: int
 
 
+class StepBucket(BaseModel):
+    """学习/重学步骤细分：处于某步骤的卡片数。"""
+
+    state: str  # learning | relearning
+    step: int  # 1 起始（展示用）
+    minutes: float  # 该步骤时长
+    count: int
+
+
 class MLStatsOut(BaseModel):
     total_cards: int
     due_now: int
@@ -98,7 +111,8 @@ class MLStatsOut(BaseModel):
     again_rate_7d: float | None
     reviews_per_day: list[DayCount]
     interval_distribution: list[IntervalBucket]
-    maturity: dict[str, int]  # new/learning/review 计数
+    maturity: dict[str, int]  # new/learning/relearning/review 计数
+    step_breakdown: list[StepBucket] = []
 
 
 class DayCount(BaseModel):

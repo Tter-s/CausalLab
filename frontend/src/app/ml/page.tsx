@@ -27,7 +27,7 @@ import { del, get, getWith, patch, post } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useT } from "@/lib/i18n";
 import { fmtDate, fmtPercent } from "@/lib/format";
-import type { CardItem, Deck, DueQueue, Experiment, ExperimentResults, MLStats, ReviewResult } from "@/lib/types";
+import type { CardItem, Deck, DueQueue, Experiment, ExperimentResults, MLStats, ReviewResult, ReviewState } from "@/lib/types";
 
 export default function MLPage() {
   const t = useT();
@@ -142,6 +142,7 @@ export default function MLPage() {
                   {c.state && (
                     <p className="mt-1.5 text-xs text-muted-foreground">
                       {c.state.reps > 0 ? t("已复习 {n} 次 · 下次 {date}", { n: c.state.reps, date: fmtDate(c.state.due_at) }) : t("未复习 · 立即可复习")}
+                      {stageShortLabel(c.state, t) && ` · ${stageShortLabel(c.state, t)}`}
                     </p>
                   )}
                 </div>
@@ -161,6 +162,37 @@ export default function MLPage() {
       </Tabs>
     </div>
   );
+}
+
+/** 卡片所处 FSRS 阶段徽标：新卡 / 学习 i/n · x 分钟 / 重学 / 复习循环 */
+function StageBadge({ state }: { state: ReviewState | null | undefined }) {
+  const t = useT();
+  if (!state || state.reps === 0 || state.state_str === "new") {
+    return <Badge variant="muted">{t("新卡")}</Badge>;
+  }
+  if ((state.state_str === "learning" || state.state_str === "relearning") && state.steps_minutes) {
+    const i = (state.step ?? 0) + 1;
+    const n = state.steps_minutes.length;
+    const x = state.steps_minutes[state.step ?? 0];
+    return (
+      <Badge variant={state.state_str === "learning" ? "default" : "warning"}>
+        {state.state_str === "learning"
+          ? t("学习 {i}/{n} · {x} 分钟", { i, n, x })
+          : t("重学 {i}/{n} · {x} 分钟", { i, n, x })}
+      </Badge>
+    );
+  }
+  return <Badge variant="success">{t("复习循环")}</Badge>;
+}
+
+/** 卡片管理列表里的阶段短标签（学习/重学时追加） */
+function stageShortLabel(state: ReviewState, t: (k: string, p?: Record<string, string | number>) => string): string | null {
+  if ((state.state_str === "learning" || state.state_str === "relearning") && state.steps_minutes) {
+    const i = (state.step ?? 0) + 1;
+    const n = state.steps_minutes.length;
+    return state.state_str === "learning" ? t("学习 {i}/{n}", { i, n }) : t("重学 {i}/{n}", { i, n });
+  }
+  return null;
 }
 
 function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; loading: boolean; refresh: () => Promise<void> }; onReviewed: () => void }) {
@@ -204,7 +236,19 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
         rating,
         duration_ms: Date.now() - shownAt,
       });
-      toast.success(t("已记录：下次 {x} 后复习", { x: r.interval_display }));
+      if (r.state.state_str === "review" && card.state?.state_str !== "review") {
+        toast.success(t("毕业！进入复习循环，下次 {x} 后复习", { x: r.interval_display }));
+      } else if (r.state.state_str === "learning" || r.state.state_str === "relearning") {
+        toast.success(
+          t("已进入学习步骤 {i}/{n}（{x} 后复习）", {
+            i: (r.state.step ?? 0) + 1,
+            n: r.state.steps_minutes?.length ?? 0,
+            x: r.interval_display,
+          }),
+        );
+      } else {
+        toast.success(t("已记录：下次 {x} 后复习", { x: r.interval_display }));
+      }
       onReviewed();
       if (index + 1 < cards.length) setIndex(index + 1);
       else { setIndex(0); await due.refresh(); }
@@ -221,7 +265,8 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
       </div>
       <Card className="min-h-72">
         <CardContent className="flex min-h-72 flex-col items-center justify-center p-8 text-center">
-          <p className="text-xl font-semibold">{card.front}</p>
+          <StageBadge state={card.state} />
+          <p className="mt-3 text-xl font-semibold">{card.front}</p>
           {revealed ? (
             <div className="mt-6 rounded-lg bg-muted/50 px-6 py-4">
               <p className="whitespace-pre-wrap text-lg">{card.back}</p>
@@ -317,7 +362,18 @@ function StatsPanel({ stats }: { stats: { data: MLStats | null; loading: boolean
         <CardContent className="flex flex-wrap gap-6 text-sm">
           <div><span className="text-2xl font-bold tabular-nums">{s.maturity.new ?? 0}</span><p className="text-muted-foreground">{t("新卡")}</p></div>
           <div><span className="text-2xl font-bold tabular-nums">{s.maturity.learning ?? 0}</span><p className="text-muted-foreground">{t("学习中")}</p></div>
+          <div><span className="text-2xl font-bold tabular-nums">{s.maturity.relearning ?? 0}</span><p className="text-muted-foreground">{t("重学")}</p></div>
           <div><span className="text-2xl font-bold tabular-nums">{s.maturity.review ?? 0}</span><p className="text-muted-foreground">{t("已进入复习循环")}</p></div>
+          {(s.step_breakdown ?? []).filter((b) => b.count > 0).map((b) => (
+            <div key={`${b.state}-${b.step}`}>
+              <span className="text-2xl font-bold tabular-nums">{b.count}</span>
+              <p className="text-muted-foreground">
+                {b.state === "learning"
+                  ? t("学习步骤 {i}（{x} 分钟）", { i: b.step, x: b.minutes })
+                  : t("重学步骤 {i}（{x} 分钟）", { i: b.step, x: b.minutes })}
+              </p>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
