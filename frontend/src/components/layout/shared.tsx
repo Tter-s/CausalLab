@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useApi } from "@/lib/useApi";
+import { useL, useT } from "@/lib/i18n";
 import type { AIStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -59,15 +60,16 @@ export function EmptyState({
 }
 
 export function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => void }) {
-  const unreachable = error.message.includes("无法连接后端");
+  const t = useT();
+  const unreachable = error.message.includes("无法连接后端") || error.message.includes("backend API");
   return (
     <div className={`flex flex-col items-center justify-center rounded-xl border px-6 py-10 text-center ${unreachable ? "border-warning/40 bg-warning/5" : "border-destructive/30 bg-destructive/5"}`}>
       <p className={`whitespace-pre-line font-medium ${unreachable ? "text-warning" : "text-destructive"}`}>
-        {error.message || "出错了"}
+        {error.message || t("state.error")}
       </p>
       {onRetry && (
         <Button variant="outline" size="sm" className="mt-3" onClick={onRetry}>
-          重试
+          {t("重试")}
         </Button>
       )}
     </div>
@@ -124,7 +126,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmText = "确认",
+  confirmText,
   destructive = false,
   onConfirm,
 }: {
@@ -136,6 +138,8 @@ export function ConfirmDialog({
   destructive?: boolean;
   onConfirm: () => Promise<void> | void;
 }) {
+  const t = useT();
+  const ctext = confirmText ?? t("action.confirm");
   const [busy, setBusy] = React.useState(false);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,7 +150,7 @@ export function ConfirmDialog({
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t("action.cancel")}
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
@@ -162,7 +166,7 @@ export function ConfirmDialog({
             }}
           >
             {busy && <Loader2 className="animate-spin" />}
-            {confirmText}
+            {ctext}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -174,6 +178,7 @@ export function ConfirmDialog({
 export function AIBanner() {
   const { data } = useApi<AIStatus>("/settings/ai/status");
   const [dismissed, setDismissed] = React.useState(false);
+  const t = useT();
   if (!data || dismissed) return null;
   const tone =
     data.provider === "none"
@@ -181,11 +186,18 @@ export function AIBanner() {
       : data.provider === "mock"
         ? "bg-warning/10 text-warning border border-warning/30"
         : "bg-primary/10 text-primary border border-primary/20";
+  const message = data.provider === "none"
+    ? t("当前为无 AI 模式：核心记录、统计、实验与可视化功能完整可用；诊断与复盘使用内置规则分析。")
+    : data.provider === "mock"
+      ? t("当前为演示模式：AI 输出为固定模拟数据，仅用于预览交互流程。")
+      : data.configured
+        ? t("已连接云端模型。所有请求经本服务端代理，API Key 不会返回给前端；发送前需要你确认内容。")
+        : t("AI 配置不完整（缺少 Base URL、模型名或 API Key），分析将回退到规则模式。");
   return (
     <div className={cn("mb-5 flex items-start justify-between gap-3 rounded-lg px-4 py-2.5 text-sm", tone)}>
-      <span>{data.notice}</span>
+      <span>{message}</span>
       <button className="shrink-0 text-xs opacity-70 hover:opacity-100 cursor-pointer" onClick={() => setDismissed(true)}>
-        知道了
+        {t("知道了")}
       </button>
     </div>
   );
@@ -193,10 +205,15 @@ export function AIBanner() {
 
 /** 演示数据标识横幅 */
 export function DemoBanner({ show }: { show: boolean }) {
+  const t = useT();
   if (!show) return null;
   return (
     <div className="mb-5 flex items-center justify-between rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm text-warning">
-      <span>当前展示的是<strong>演示数据</strong>（非真实记录），可在「设置 → 数据管理」中清除或导出。</span>
+      <span>
+        {t("当前展示的是")}
+        <strong>{t("演示数据")}</strong>
+        {t("（非真实记录），可在「设置 → 数据管理」中清除或导出。")}
+      </span>
       <Badge variant="warning">Demo</Badge>
     </div>
   );
@@ -204,13 +221,14 @@ export function DemoBanner({ show }: { show: boolean }) {
 
 /** 证据徽章：事实/推测/缺失 */
 export function EvidenceBadge({ kind }: { kind: string }) {
+  const L = useL();
   const map: Record<string, { label: string; variant: "success" | "warning" | "destructive" | "muted" }> = {
-    fact: { label: "事实", variant: "success" },
-    speculation: { label: "推测", variant: "warning" },
-    missing_evidence: { label: "缺失证据", variant: "destructive" },
-    ai_analysis: { label: "AI 分析", variant: "muted" },
-    user_correction: { label: "用户纠正", variant: "muted" },
-    user_input: { label: "用户输入", variant: "muted" },
+    fact: { label: L.evidenceKind.fact, variant: "success" },
+    speculation: { label: L.evidenceKind.speculation, variant: "warning" },
+    missing_evidence: { label: L.evidenceKind.missing_evidence, variant: "destructive" },
+    ai_analysis: { label: L.evidenceKind.ai_analysis, variant: "muted" },
+    user_correction: { label: L.evidenceKind.user_correction, variant: "muted" },
+    user_input: { label: L.evidenceKind.user_input, variant: "muted" },
   };
   const item = map[kind] ?? { label: kind, variant: "muted" as const };
   return <Badge variant={item.variant}>{item.label}</Badge>;

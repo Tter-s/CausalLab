@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { get, patch, post } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useAICall } from "@/lib/ai-client";
-import { L } from "@/lib/i18n";
+import { useL, useT } from "@/lib/i18n";
 import { fmtDateTime } from "@/lib/format";
 import type { Hypothesis, Loop, LoopStageItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils";
 const STAGES = ["observe", "hypothesize", "intervene", "measure", "review", "adjust"] as const;
 
 export default function LoopsPage() {
+  const t = useT();
+  const L = useL();
   const loops = useApi<Loop[]>("/loops");
   const hypotheses = useApi<Hypothesis[]>("/hypotheses");
   const ai = useAICall();
@@ -38,11 +40,11 @@ export default function LoopsPage() {
   const selectedLoop = (loops.data ?? []).find((l) => l.id === stageLoopId) ?? null;
 
   const create = async () => {
-    if (!form.title.trim()) return toast.error("请填写循环标题");
+    if (!form.title.trim()) return toast.error(t("请填写循环标题"));
     await post("/loops", form);
     setCreateOpen(false);
     setForm({ title: "", problem: "" });
-    toast.success("改进循环已开启");
+    toast.success(t("改进循环已开启"));
     void loops.refresh();
   };
 
@@ -58,7 +60,7 @@ export default function LoopsPage() {
     if (stageForm.intervention) content.intervention = stageForm.intervention;
     if (stageForm.content_note) content.note = stageForm.content_note;
     await post(`/loops/${selectedLoop.id}/stages`, { stage: stageForm.stage, content });
-    toast.success(`已推进到「${L.loopStage[stageForm.stage]}」`);
+    toast.success(t("已推进到「{stage}」", { stage: L.loopStage[stageForm.stage] }));
     setStages(await get<LoopStageItem[]>(`/loops/${selectedLoop.id}/stages`));
     void loops.refresh();
   };
@@ -67,7 +69,7 @@ export default function LoopsPage() {
     if (!selectedLoop) return;
     await ai.call({
       path: `/ai/loops/${selectedLoop.id}/review`,
-      successMessage: "AI 循环复盘已生成",
+      successMessage: t("AI 循环复盘已生成"),
       onDone: (data) => {
         setReviewResult(data as { verdict: string; reasoning: string; next_strategy: string[] });
         void loops.refresh();
@@ -77,7 +79,7 @@ export default function LoopsPage() {
 
   const closeLoop = async (loop: Loop, verdict: string) => {
     await patch(`/loops/${loop.id}`, { status: "closed", verdict });
-    toast.success("循环已关闭");
+    toast.success(t("循环已关闭"));
     void loops.refresh();
   };
 
@@ -91,17 +93,17 @@ export default function LoopsPage() {
     <div>
       <AIBanner />
       <PageHeader
-        title="改进循环"
-        description="发现问题 → 提出假设 → 设计干预 → 执行 → 收集数据 → 复盘 → 修改策略。这是可操作的产品流程，不是流程图。"
-        actions={<Button onClick={() => setCreateOpen(true)}><Plus /> 开启循环</Button>}
+        title={t("改进循环")}
+        description={t("发现问题 → 提出假设 → 设计干预 → 执行 → 收集数据 → 复盘 → 修改策略。这是可操作的产品流程，不是流程图。")}
+        actions={<Button onClick={() => setCreateOpen(true)}><Plus /> {t("开启循环")}</Button>}
       />
 
       {list.length === 0 ? (
-        <EmptyState icon={Repeat} title="还没有改进循环" hint="从一个具体的问题开始，比如“做题总是分心”。" action={<Button onClick={() => setCreateOpen(true)}><Plus /> 开启第一个循环</Button>} />
+        <EmptyState icon={Repeat} title={t("还没有改进循环")} hint={t("从一个具体的问题开始，比如做题总是分心。")} action={<Button onClick={() => setCreateOpen(true)}><Plus /> {t("开启第一个循环")}</Button>} />
       ) : (
         <div className="space-y-8">
           <div>
-            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">进行中（{active.length}）</h2>
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("进行中（{n}）", { n: active.length })}</h2>
             <div className="grid gap-3 lg:grid-cols-2">
               {active.map((l) => (
                 <Card key={l.id} className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => void openStages(l.id)}>
@@ -114,13 +116,13 @@ export default function LoopsPage() {
                   </CardContent>
                 </Card>
               ))}
-              {active.length === 0 && <p className="text-sm text-muted-foreground">没有进行中的循环。</p>}
+              {active.length === 0 && <p className="text-sm text-muted-foreground">{t("没有进行中的循环。")}</p>}
             </div>
           </div>
 
           {closed.length > 0 && (
             <div>
-              <h2 className="mb-3 text-sm font-semibold text-muted-foreground">已关闭</h2>
+              <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("已关闭")}</h2>
               <div className="grid gap-3 lg:grid-cols-2">
                 {closed.map((l) => (
                   <Card key={l.id} className="cursor-pointer opacity-75" onClick={() => void openStages(l.id)}>
@@ -128,7 +130,7 @@ export default function LoopsPage() {
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-base">{l.title}</CardTitle>
                         <Badge variant={l.verdict === "effective" ? "success" : l.verdict === "ineffective" ? "destructive" : "warning"}>
-                          {l.verdict === "effective" ? "有效" : l.verdict === "ineffective" ? "无效" : "不确定"}
+                          {l.verdict === "effective" ? t("有效") : l.verdict === "ineffective" ? t("无效") : t("不确定")}
                         </Badge>
                       </div>
                     </CardHeader>
@@ -165,42 +167,42 @@ export default function LoopsPage() {
 
               {selectedLoop.status === "active" && (
                 <div className="mt-4 space-y-3 rounded-lg border bg-muted/30 p-4">
-                  <p className="text-sm font-medium">推进到下一阶段</p>
+                  <p className="text-sm font-medium">{t("推进到下一阶段")}</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-xs">目标阶段</Label>
+                      <Label className="text-xs">{t("目标阶段")}</Label>
                       <Select value={stageForm.stage} onChange={(e) => setStageForm({ ...stageForm, stage: e.target.value })}>
                         {STAGES.map((s) => <option key={s} value={s}>{L.loopStage[s]}</option>)}
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-xs">关联假设（可选）</Label>
+                      <Label className="text-xs">{t("关联假设（可选）")}</Label>
                       <Select value={stageForm.hypothesis_id} onChange={(e) => setStageForm({ ...stageForm, hypothesis_id: e.target.value })}>
-                        <option value="">不关联</option>
+                        <option value="">{t("不关联")}</option>
                         {(hypotheses.data ?? []).map((h) => <option key={h.id} value={h.id}>{h.statement.slice(0, 30)}…</option>)}
                       </Select>
                     </div>
                   </div>
                   {(stageForm.stage === "intervene" || stageForm.stage === "measure") && (
                     <div>
-                      <Label className="text-xs">干预措施 / 记录内容</Label>
+                      <Label className="text-xs">{t("干预措施 / 记录内容")}</Label>
                       <Textarea rows={2} value={stageForm.intervention} onChange={(e) => setStageForm({ ...stageForm, intervention: e.target.value })} />
                     </div>
                   )}
                   <div>
-                    <Label className="text-xs">备注（可选）</Label>
+                    <Label className="text-xs">{t("备注（可选）")}</Label>
                     <Input value={stageForm.content_note} onChange={(e) => setStageForm({ ...stageForm, content_note: e.target.value })} />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => void advance()}><ArrowRight /> 推进</Button>
+                    <Button size="sm" onClick={() => void advance()}><ArrowRight /> {t("推进")}</Button>
                     <Button size="sm" variant="outline" disabled={ai.pending} onClick={() => void runAIReview()}>
-                      <Sparkles /> AI 复盘判断{ai.pending ? "…" : ""}
+                      <Sparkles /> {t("AI 复盘判断")}{ai.pending ? "…" : ""}
                     </Button>
                   </div>
                   {reviewResult && (
                     <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm">
                       <p className="font-semibold text-primary">
-                        结论：{reviewResult.verdict === "effective" ? "有效" : reviewResult.verdict === "ineffective" ? "无效" : "证据不足（不确定）"}
+                        结论：{reviewResult.verdict === "effective" ? t("有效") : reviewResult.verdict === "ineffective" ? t("无效") : t("证据不足（不确定）")}
                       </p>
                       <p className="mt-1 text-muted-foreground">{reviewResult.reasoning}</p>
                       {reviewResult.next_strategy.length > 0 && (
@@ -211,9 +213,9 @@ export default function LoopsPage() {
                     </div>
                   )}
                   <div className="flex gap-2 border-t pt-3">
-                    <Button size="sm" variant="outline" onClick={() => void closeLoop(selectedLoop, "effective")}>关闭：有效</Button>
-                    <Button size="sm" variant="outline" onClick={() => void closeLoop(selectedLoop, "ineffective")}>关闭：无效</Button>
-                    <Button size="sm" variant="outline" onClick={() => void closeLoop(selectedLoop, "uncertain")}>关闭：不确定</Button>
+                    <Button size="sm" variant="outline" onClick={() => void closeLoop(selectedLoop, "effective")}>{t("关闭：有效")}</Button>
+                    <Button size="sm" variant="outline" onClick={() => void closeLoop(selectedLoop, "ineffective")}>{t("关闭：无效")}</Button>
+                    <Button size="sm" variant="outline" onClick={() => void closeLoop(selectedLoop, "uncertain")}>{t("关闭：不确定")}</Button>
                   </div>
                 </div>
               )}
@@ -225,16 +227,16 @@ export default function LoopsPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>开启改进循环</DialogTitle>
-            <DialogDescription>从一个具体、可观察的问题开始。</DialogDescription>
+            <DialogTitle>{t("开启改进循环")}</DialogTitle>
+            <DialogDescription>{t("从一个具体、可观察的问题开始。")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div><Label>标题 *</Label><Input placeholder="如：减少刷题时的分心" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-            <div><Label>问题描述</Label><Textarea placeholder="具体表现是什么？什么时候发生？" value={form.problem} onChange={(e) => setForm({ ...form, problem: e.target.value })} /></div>
+            <div><Label>{t("标题 *")}</Label><Input placeholder={t("如：减少刷题时的分心")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+            <div><Label>{t("问题描述")}</Label><Textarea placeholder={t("具体表现是什么？什么时候发生？")} value={form.problem} onChange={(e) => setForm({ ...form, problem: e.target.value })} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>取消</Button>
-            <Button onClick={() => void create()}>开启循环</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("action.cancel")}</Button>
+            <Button onClick={() => void create()}>{t("开启循环")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -244,6 +246,7 @@ export default function LoopsPage() {
 }
 
 function StageProgress({ current, large = false }: { current: string; large?: boolean }) {
+  const L = useL();
   const idx = STAGES.indexOf(current as (typeof STAGES)[number]);
   return (
     <div className="flex items-center gap-1">

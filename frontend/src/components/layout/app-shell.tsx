@@ -25,9 +25,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { getWith } from "@/lib/api";
 import type { SearchOut } from "@/lib/types";
-import { L, useT } from "@/lib/i18n";
+import { I18nProvider, useI18n, useL, useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { I18nProvider } from "@/lib/i18n";
 
 const NAV = [
   { href: "/", key: "nav.dashboard", icon: Activity },
@@ -70,6 +69,8 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const t = useT();
+  const L = useL();
   const [q, setQ] = React.useState("");
   const [results, setResults] = React.useState<SearchOut | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -103,18 +104,18 @@ function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent wide>
         <DialogHeader>
-          <DialogTitle>全局搜索</DialogTitle>
+          <DialogTitle>{t("全局搜索")}</DialogTitle>
         </DialogHeader>
         <Input
           autoFocus
-          placeholder="搜索知识点、决策、任务、卡片、事件…"
+          placeholder={t("搜索知识点、决策、任务、卡片、事件…")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <div className="mt-3 max-h-80 space-y-3 overflow-y-auto">
-          {busy && <p className="text-sm text-muted-foreground">搜索中…</p>}
+          {busy && <p className="text-sm text-muted-foreground">{t("搜索中…")}</p>}
           {results && results.total === 0 && !busy && (
-            <p className="text-sm text-muted-foreground">没有匹配结果</p>
+            <p className="text-sm text-muted-foreground">{t("没有匹配结果")}</p>
           )}
           {results &&
             Object.entries(results.groups).map(([group, hits]) => (
@@ -162,6 +163,7 @@ function moduleHref(module: string, refType: string, refId: number): string {
 }
 
 function ThemeToggle() {
+  const t = useT();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
@@ -169,7 +171,7 @@ function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      aria-label="切换主题"
+      aria-label={t("切换主题")}
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
     >
       {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -177,11 +179,38 @@ function ThemeToggle() {
   );
 }
 
+function LocaleSwitch() {
+  const { locale, setLocale } = useI18n();
+  return (
+    <div
+      className="flex h-8 items-center overflow-hidden rounded-full border bg-card text-xs font-medium"
+      role="group"
+      aria-label="Language"
+    >
+      <button
+        className={`h-full px-2.5 transition-colors cursor-pointer ${locale === "zh" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+        onClick={() => setLocale("zh")}
+        aria-pressed={locale === "zh"}
+      >
+        中
+      </button>
+      <button
+        className={`h-full px-2.5 transition-colors cursor-pointer ${locale === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"}`}
+        onClick={() => setLocale("en")}
+        aria-pressed={locale === "en"}
+      >
+        EN
+      </button>
+    </div>
+  );
+}
+
 function TopBar() {
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const t = useT();
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur lg:px-6">
-      <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSearchOpen(true)} aria-label="搜索">
+      <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSearchOpen(true)} aria-label={t("全局搜索")}>
         <Search className="h-4 w-4" />
       </Button>
       <button
@@ -189,9 +218,10 @@ function TopBar() {
         onClick={() => setSearchOpen(true)}
       >
         <Search className="h-4 w-4" />
-        全局搜索…
+        {t("全局搜索…")}
       </button>
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-2">
+        <LocaleSwitch />
         <ThemeToggle />
       </div>
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
@@ -200,10 +230,17 @@ function TopBar() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <I18nProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </I18nProvider>
+  );
+}
+
+function AppShellInner({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const t = useT();
   return (
-    <I18nProvider>
       <div className="flex min-h-screen">
         {/* 桌面侧边栏 */}
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r bg-sidebar lg:flex">
@@ -220,7 +257,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarNav onNavigate={() => setMobileOpen(false)} />
           </React.Suspense>
           <div className="mt-auto px-5 py-4 text-[11px] text-muted-foreground">
-            本地单用户模式 · 数据存储在本机
+            {t("本地单用户模式 · 数据存储在本机")}
           </div>
         </aside>
 
@@ -248,14 +285,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="mx-3 mt-3 flex h-9 items-center gap-2 rounded-lg border px-3 text-sm"
               onClick={() => setMobileOpen(true)}
             >
-              <Menu className="h-4 w-4" /> 菜单
+              <Menu className="h-4 w-4" /> {t("菜单")}
             </button>
           </div>
           <TopBar />
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-8">{children}</main>
         </div>
       </div>
-    </I18nProvider>
   );
 }
 

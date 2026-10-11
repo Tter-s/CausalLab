@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
 
 interface AICallOptions {
   path: string;
@@ -27,6 +28,7 @@ interface AICallOptions {
 }
 
 export function useAICall() {
+  const t = useT();
   const [pending, setPending] = React.useState(false);
   const [preview, setPreview] = React.useState<{ provider: string; model_id: string; payload: string; resolve: (v: boolean) => void } | null>(null);
   const [lastOptions, setLastOptions] = React.useState<AICallOptions | null>(null);
@@ -71,10 +73,12 @@ export function useAICall() {
     <Dialog open onOpenChange={() => preview.resolve(false)}>
       <DialogContent wide>
         <DialogHeader>
-          <DialogTitle>发送内容到云端模型？</DialogTitle>
+          <DialogTitle>{t("发送内容到云端模型？")}</DialogTitle>
           <DialogDescription>
-            以下内容将发送给 <strong>{preview.provider}</strong> 的模型 <strong>{preview.model_id || "（未命名）"}</strong>
-            。请确认其中没有你不想发出的隐私信息。你也可以在「设置 → AI 服务」中开启“自动确认”。
+            {t("以下内容将发送给 {provider} 的模型 {model}。请确认其中没有你不想发出的隐私信息。你也可以在「设置 → AI 服务」中开启自动确认。", {
+              provider: preview.provider,
+              model: preview.model_id || t("（未命名）"),
+            })}
           </DialogDescription>
         </DialogHeader>
         <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed">
@@ -82,9 +86,9 @@ export function useAICall() {
         </pre>
         <DialogFooter>
           <Button variant="outline" onClick={() => preview.resolve(false)}>
-            取消
+            {t("action.cancel")}
           </Button>
-          <Button onClick={() => preview.resolve(true)}>确认发送</Button>
+          <Button onClick={() => preview.resolve(true)}>{t("确认发送")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

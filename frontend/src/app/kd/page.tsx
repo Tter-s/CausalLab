@@ -26,7 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { del, get, getWith, patch, post } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useAICall } from "@/lib/ai-client";
-import { L } from "@/lib/i18n";
+import { useL, useT } from "@/lib/i18n";
 import { fmtDateTime, fmtPercent } from "@/lib/format";
 import type { Attempt, Diagnosis, StudyTask, Subject, Suggestion, Topic, TopicEdge } from "@/lib/types";
 
@@ -37,6 +37,8 @@ interface GraphOut {
 }
 
 export default function KDPage() {
+  const t = useT();
+  const L = useL();
   const graph = useApi<GraphOut>("/kd/graph");
   const tasks = useApi<StudyTask[]>("/kd/tasks");
   const [selectedTopicId, setSelectedTopicId] = React.useState<number | null>(null);
@@ -74,44 +76,44 @@ export default function KDPage() {
   };
 
   const createSubject = async () => {
-    if (!subjectForm.name.trim()) return toast.error("请填写学科名称");
+    if (!subjectForm.name.trim()) return toast.error(t("请填写学科名称"));
     await post("/kd/subjects", subjectForm);
     setSubjectForm({ name: "", description: "" });
-    toast.success("学科已创建");
+    toast.success(t("学科已创建"));
     void graph.refresh();
   };
 
   const createTopic = async () => {
-    if (!topicForm.subject_id || !topicForm.name.trim()) return toast.error("请选择学科并填写名称");
+    if (!topicForm.subject_id || !topicForm.name.trim()) return toast.error(t("请选择学科并填写名称"));
     await post("/kd/topics", { ...topicForm, subject_id: Number(topicForm.subject_id) });
     setTopicForm({ ...topicForm, name: "", description: "" });
-    toast.success("知识点已创建");
+    toast.success(t("知识点已创建"));
     void graph.refresh();
   };
 
   const createEdge = async () => {
-    if (!edgeForm.from || !edgeForm.to) return toast.error("请选择两个知识点");
-    if (edgeForm.from === edgeForm.to) return toast.error("不能创建自依赖");
+    if (!edgeForm.from || !edgeForm.to) return toast.error(t("请选择两个知识点"));
+    if (edgeForm.from === edgeForm.to) return toast.error(t("不能创建自依赖"));
     await post("/kd/edges", {
       from_topic_id: Number(edgeForm.from),
       to_topic_id: Number(edgeForm.to),
       relation: edgeForm.relation,
     });
-    toast.success("依赖关系已创建");
+    toast.success(t("依赖关系已创建"));
     void graph.refresh();
   };
 
   const createTask = async () => {
-    if (!taskForm.topic_id || !taskForm.title.trim()) return toast.error("请选择知识点并填写标题");
+    if (!taskForm.topic_id || !taskForm.title.trim()) return toast.error(t("请选择知识点并填写标题"));
     await post("/kd/tasks", { ...taskForm, topic_id: Number(taskForm.topic_id) });
     setTaskForm({ ...taskForm, title: "", question_text: "" });
-    toast.success("学习任务已创建");
+    toast.success(t("学习任务已创建"));
     void tasks.refresh();
   };
 
   const recordAttempt = async (taskId: number, payload: Record<string, unknown>) => {
     await post(`/kd/tasks/${taskId}/attempts`, payload);
-    toast.success("答题已记录");
+    toast.success(t("答题已记录"));
     void tasks.refresh();
     if (selectedTopicId) void topicAttempts.refresh();
   };
@@ -138,7 +140,7 @@ export default function KDPage() {
     try {
       const d = await post<Diagnosis>(`/kd/topics/${selectedTopicId}/diagnose`);
       setDiag(d);
-      toast.success("规则诊断完成");
+      toast.success(t("规则诊断完成"));
     } finally {
       setDiagLoading(false);
     }
@@ -174,7 +176,7 @@ export default function KDPage() {
       correction_note: note,
     });
     setDiag(updated);
-    toast.success("已记录你的纠正");
+    toast.success(t("已记录你的纠正"));
   };
 
   const verifySuggestion = async (s: Suggestion, success: boolean) => {
@@ -183,7 +185,7 @@ export default function KDPage() {
       note: success ? "验证任务独立完成" : "验证未通过",
     });
     setSuggestions((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-    toast.success(success ? "已记录：建议有效" : "已记录：建议未生效");
+    toast.success(success ? t("已记录：建议有效") : t("已记录：建议未生效"));
     void tasks.refresh();
   };
 
@@ -209,21 +211,21 @@ export default function KDPage() {
     <div>
       <AIBanner />
       <PageHeader
-        title="知识债务"
-        description="记录学习障碍的证据，区分概念、提取、方法、执行、迁移五类困难——不凭一次失败下结论。"
+        title={t("知识债务")}
+        description={t("记录学习障碍的证据，区分概念、提取、方法、执行、迁移五类困难——不凭一次失败下结论。")}
       />
 
       <Tabs defaultValue="graph">
         <TabsList>
-          <TabsTrigger value="graph"><Network className="h-4 w-4" /> 知识图谱</TabsTrigger>
-          <TabsTrigger value="tasks"><GraduationCap className="h-4 w-4" /> 学习任务与诊断</TabsTrigger>
+          <TabsTrigger value="graph"><Network className="h-4 w-4" /> {t("知识图谱")}</TabsTrigger>
+          <TabsTrigger value="tasks"><GraduationCap className="h-4 w-4" /> {t("学习任务与诊断")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="graph" className="grid gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base">依赖关系图</CardTitle>
-              <CardDescription>节点 = 知识点（红色为薄弱），箭头 = 前置依赖</CardDescription>
+              <CardTitle className="text-base">{t("依赖关系图")}</CardTitle>
+              <CardDescription>{t("节点 = 知识点（红色为薄弱），箭头 = 前置依赖")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-96 rounded-lg border bg-card">
@@ -238,37 +240,37 @@ export default function KDPage() {
           </Card>
           <div className="space-y-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">新建学科</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t("新建学科")}</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <Input placeholder="学科名称，如：高等数学" value={subjectForm.name} onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })} />
-                <Input placeholder="描述（可选）" value={subjectForm.description} onChange={(e) => setSubjectForm({ ...subjectForm, description: e.target.value })} />
-                <Button size="sm" onClick={() => void createSubject()}><Plus /> 创建学科</Button>
+                <Input placeholder={t("学科名称，如：高等数学")} value={subjectForm.name} onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })} />
+                <Input placeholder={t("描述（可选）")} value={subjectForm.description} onChange={(e) => setSubjectForm({ ...subjectForm, description: e.target.value })} />
+                <Button size="sm" onClick={() => void createSubject()}><Plus /> {t("创建学科")}</Button>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">新建知识点</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t("新建知识点")}</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <Select aria-label="知识点所属学科" value={topicForm.subject_id} onChange={(e) => setTopicForm({ ...topicForm, subject_id: e.target.value })}>
-                  <option value="">选择学科…</option>
+                  <option value="">{t("选择学科…")}</option>
                   {(graph.data?.subjects ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </Select>
-                <Input placeholder="知识点名称" value={topicForm.name} onChange={(e) => setTopicForm({ ...topicForm, name: e.target.value })} />
-                <Input placeholder="描述（可选）" value={topicForm.description} onChange={(e) => setTopicForm({ ...topicForm, description: e.target.value })} />
-                <Button size="sm" onClick={() => void createTopic()}><Plus /> 创建知识点</Button>
+                <Input placeholder={t("知识点名称")} value={topicForm.name} onChange={(e) => setTopicForm({ ...topicForm, name: e.target.value })} />
+                <Input placeholder={t("描述（可选）")} value={topicForm.description} onChange={(e) => setTopicForm({ ...topicForm, description: e.target.value })} />
+                <Button size="sm" onClick={() => void createTopic()}><Plus /> {t("创建知识点")}</Button>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">添加依赖</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{t("添加依赖")}</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <Select aria-label="前置知识点" value={edgeForm.from} onChange={(e) => setEdgeForm({ ...edgeForm, from: e.target.value })}>
-                  <option value="">前置知识点…</option>
+                  <option value="">{t("前置知识点…")}</option>
                   {(graph.data?.nodes ?? []).map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
                 </Select>
                 <Select aria-label="后续知识点" value={edgeForm.to} onChange={(e) => setEdgeForm({ ...edgeForm, to: e.target.value })}>
-                  <option value="">后续知识点…</option>
+                  <option value="">{t("后续知识点…")}</option>
                   {(graph.data?.nodes ?? []).map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
                 </Select>
-                <Button size="sm" onClick={() => void createEdge()}><Plus /> 建立依赖</Button>
+                <Button size="sm" onClick={() => void createEdge()}><Plus /> {t("建立依赖")}</Button>
               </CardContent>
             </Card>
           </div>
@@ -304,32 +306,32 @@ export default function KDPage() {
           {/* 任务与答题 */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base">{selectedTopic ? `任务：${selectedTopic.name}` : "学习任务"}</CardTitle>
-              <CardDescription>记录题目、上传解答思路，登记每次答题情况</CardDescription>
+              <CardTitle className="text-base">{selectedTopic ? t("任务：{name}", { name: selectedTopic.name }) : t("学习任务")}</CardTitle>
+              <CardDescription>{t("记录题目、上传解答思路，登记每次答题情况")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {selectedTopic && (
                 <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
                   <Input
-                    placeholder="任务标题，如：手推梯度下降更新公式"
+                    placeholder={t("任务标题，如：手推梯度下降更新公式")}
                     value={taskForm.title}
                     onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
                   />
                   <Textarea
-                    placeholder="题目内容 / 你的解答（可选粘贴）"
+                    placeholder={t("题目内容 / 你的解答（可选粘贴）")}
                     value={taskForm.question_text}
                     onChange={(e) => setTaskForm({ ...taskForm, question_text: e.target.value })}
                   />
-                  <Button size="sm" onClick={() => void createTask()}><Plus /> 添加任务</Button>
+                  <Button size="sm" onClick={() => void createTask()}><Plus /> {t("添加任务")}</Button>
                 </div>
               )}
-              {!selectedTopicId && <EmptyState icon={GraduationCap} title="选择左侧知识点" hint="选择知识点后可添加学习任务并记录答题。" />}
+              {!selectedTopicId && <EmptyState icon={GraduationCap} title={t("选择左侧知识点")} hint={t("选择知识点后可添加学习任务并记录答题。")} />}
               {selectedTopicId && (
                 <div className="space-y-2">
                   {topicTasks.map((t) => (
                     <TaskRow key={t.id} task={t} onAttempt={recordAttempt} onDelete={async () => { await del(`/kd/tasks/${t.id}`); void tasks.refresh(); }} />
                   ))}
-                  {topicTasks.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">该知识点还没有任务</p>}
+                  {topicTasks.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">{t("该知识点还没有任务")}</p>}
                 </div>
               )}
             </CardContent>
@@ -338,19 +340,19 @@ export default function KDPage() {
           {/* 诊断面板 */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base">诊断面板</CardTitle>
-              <CardDescription>基于答题记录的保守推断，永远可以由你纠正</CardDescription>
+              <CardTitle className="text-base">{t("诊断面板")}</CardTitle>
+              <CardDescription>{t("基于答题记录的保守推断，永远可以由你纠正")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!selectedTopicId && <EmptyState icon={ShieldQuestion} title="先选择知识点" hint="诊断需要至少一条答题记录；样本不足时系统会明确说明而不是硬下结论。" />}
+              {!selectedTopicId && <EmptyState icon={ShieldQuestion} title={t("先选择知识点")} hint={t("诊断需要至少一条答题记录；样本不足时系统会明确说明而不是硬下结论。")} />}
               {selectedTopicId && (
                 <>
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" disabled={diagLoading} onClick={() => void runRuleDiagnosis()}>
-                      规则诊断
+                      {t("规则诊断")}
                     </Button>
                     <Button size="sm" disabled={diagLoading || ai.pending} onClick={() => void runDiagnosis()}>
-                      AI 诊断{diagLoading || ai.pending ? "…" : ""}
+                      {t("AI 诊断")}{diagLoading || ai.pending ? "…" : ""}
                     </Button>
                   </div>
                   {diag && (
@@ -361,7 +363,7 @@ export default function KDPage() {
                       onCorrect={correctDiagnosis}
                       onGenerateSuggestions={generateSuggestions}
                       onVerify={async (s) => {
-                        const ok = window.confirm("验证任务是否通过？（确定=通过，取消=未通过）");
+                        const ok = window.confirm(t("验证任务是否通过？（确定=通过，取消=未通过）"));
                         await verifySuggestion(s, ok);
                       }}
                     />
@@ -397,6 +399,7 @@ function TopicGraph({
   onNodeClick: (id: number) => void;
   selectedId: number | null;
 }) {
+  const t = useT();
   const rfNodes: Node[] = React.useMemo(() => {
     const byDepth = new Map<number, number[]>();
     const depth = (id: number, seen = new Set<number>()): number => {
@@ -448,7 +451,7 @@ function TopicGraph({
   );
 
   if (nodes.length === 0) {
-    return <EmptyState icon={Network} title="还没有知识点" hint="在右侧创建学科和知识点后，这里会自动绘制依赖图。" />;
+    return <EmptyState icon={Network} title={t("还没有知识点")} hint={t("在右侧创建学科和知识点后，这里会自动绘制依赖图。")} />;
   }
 
   return (
@@ -474,20 +477,22 @@ function TaskRow({
   onAttempt: (taskId: number, payload: Record<string, unknown>) => Promise<void>;
   onDelete: () => Promise<void>;
 }) {
+  const t = useT();
+  const L = useL();
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState({ correct: "true", error_category: "none", independent: "false", notes: "" });
 
   return (
     <div className="rounded-lg border p-3">
       <div className="flex items-center gap-2">
-        {task.is_verification && <Badge variant="warning">验证任务</Badge>}
-        {task.verification_status === "success" && <Badge variant="success">验证通过</Badge>}
-        {task.verification_status === "failure" && <Badge variant="destructive">验证失败</Badge>}
+        {task.is_verification && <Badge variant="warning">{t("验证任务")}</Badge>}
+        {task.verification_status === "success" && <Badge variant="success">{t("验证通过")}</Badge>}
+        {task.verification_status === "failure" && <Badge variant="destructive">{t("验证失败")}</Badge>}
         <p className="min-w-0 flex-1 truncate text-sm font-medium">{task.title}</p>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(!open)} aria-label="记录答题">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(!open)} aria-label={t("记录答题")}>
           <CircleDot className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => void onDelete()} aria-label="删除任务">
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => void onDelete()} aria-label={t("action.delete")}>
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -495,21 +500,21 @@ function TaskRow({
       {open && (
         <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-3 text-sm">
           <div>
-            <Label className="text-xs">结果</Label>
+            <Label className="text-xs">{t("结果")}</Label>
             <Select value={form.correct} onChange={(e) => setForm({ ...form, correct: e.target.value })}>
-              <option value="true">答对</option>
-              <option value="false">答错</option>
+              <option value="true">{t("答对")}</option>
+              <option value="false">{t("答错")}</option>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">独立完成</Label>
+            <Label className="text-xs">{t("独立完成")}</Label>
             <Select value={form.independent} onChange={(e) => setForm({ ...form, independent: e.target.value })}>
-              <option value="true">独立</option>
-              <option value="false">有辅助</option>
+              <option value="true">{t("独立")}</option>
+              <option value="false">{t("有辅助")}</option>
             </Select>
           </div>
           <div className="col-span-2">
-            <Label className="text-xs">错误类别（答错时）</Label>
+            <Label className="text-xs">{t("错误类别（答错时）")}</Label>
             <Select value={form.error_category} onChange={(e) => setForm({ ...form, error_category: e.target.value })}>
               {Object.entries(L.kdErrorCategory).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
@@ -517,7 +522,7 @@ function TaskRow({
             </Select>
           </div>
           <div className="col-span-2">
-            <Input placeholder="备注（如卡在哪一步）" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <Input placeholder={t("备注（如卡在哪一步）")} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
           <Button
             size="sm"
@@ -532,7 +537,7 @@ function TaskRow({
               setOpen(false);
             }}
           >
-            <CheckCircle2 /> 提交答题记录
+            <CheckCircle2 /> {t("提交答题记录")}
           </Button>
         </div>
       )}
@@ -555,6 +560,8 @@ function DiagnosisPanel({
   onGenerateSuggestions: () => Promise<void>;
   onVerify: (s: Suggestion) => Promise<void>;
 }) {
+  const t = useT();
+  const L = useL();
   const [correctOpen, setCorrectOpen] = React.useState(false);
   const [correction, setCorrection] = React.useState({ category: "concept_gap", note: "" });
   const confidence = diag.confidence;
@@ -567,7 +574,7 @@ function DiagnosisPanel({
             {L.kdDiagCategory[diag.category] ?? diag.category}
           </Badge>
           <span className="text-xs text-muted-foreground">
-            {diag.source === "ai" ? "AI 诊断" : diag.source === "rule" ? "规则诊断" : "用户诊断"} · {fmtDateTime(diag.created_at)}
+            {diag.source === "ai" ? t("AI 诊断") : diag.source === "rule" ? t("规则诊断") : t("用户诊断")} · {fmtDateTime(diag.created_at)}
           </span>
         </div>
         <div className="mt-2 flex items-center gap-2">
@@ -577,24 +584,24 @@ function DiagnosisPanel({
               style={{ width: `${Math.round(confidence * 100)}%` }}
             />
           </div>
-          <span className="text-xs tabular-nums text-muted-foreground">置信度 {fmtPercent(confidence)}</span>
+          <span className="text-xs tabular-nums text-muted-foreground">{t("置信度 {p}", { p: fmtPercent(confidence) })}</span>
         </div>
         <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{diag.rationale}</p>
-        <p className="mt-1 text-xs text-muted-foreground">依据 {diag.basis_attempt_count} 条答题记录</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t("依据 {n} 条答题记录", { n: diag.basis_attempt_count })}</p>
         {diag.status === "user_confirmed" && diag.corrected_category && (
           <p className="mt-2 rounded bg-success/10 px-2 py-1 text-xs text-success">
-            你已纠正为「{L.kdDiagCategory[diag.corrected_category] ?? diag.corrected_category}」
+            {t("你已纠正为「{cat}」", { cat: L.kdDiagCategory[diag.corrected_category] ?? diag.corrected_category })}
           </p>
         )}
       </div>
 
       <div className="rounded-lg border p-3">
-        <p className="mb-2 text-xs font-semibold text-muted-foreground">其他可能解释</p>
+        <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("其他可能解释")}</p>
         <ul className="space-y-1.5 text-sm">
           {diag.alternatives.map((a, i) => (
             <li key={i} className="flex items-start gap-2">
               <Badge variant={a.likelihood === "medium" ? "warning" : "muted"} className="mt-0.5 shrink-0">
-                {a.likelihood === "medium" ? "中等可能" : a.likelihood === "high" ? "高可能" : "低可能"}
+                {a.likelihood === "medium" ? t("中等可能") : a.likelihood === "high" ? t("高可能") : t("低可能")}
               </Badge>
               <span className="min-w-0">
                 <strong>{L.kdDiagCategory[a.category] ?? a.category}</strong>
@@ -607,27 +614,27 @@ function DiagnosisPanel({
 
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={() => setCorrectOpen(true)}>
-          纠正诊断
+          {t("纠正诊断")}
         </Button>
         <Button size="sm" variant="outline" onClick={() => void onGenerateSuggestions()}>
-          生成学习建议
+          {t("生成学习建议")}
         </Button>
       </div>
 
       {suggestions.length > 0 && (
         <div className="rounded-lg border p-3">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">建议与验证闭环</p>
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("建议与验证闭环")}</p>
           <ul className="space-y-2 text-sm">
             {suggestions.map((s) => (
               <li key={s.id} className="rounded border bg-muted/30 p-2">
                 <p className="whitespace-pre-wrap">{s.content}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <Badge variant={s.status === "effective" ? "success" : s.status === "ineffective" ? "destructive" : s.status === "testing" ? "warning" : "muted"}>
-                    {s.status === "effective" ? "已验证有效" : s.status === "ineffective" ? "未生效" : s.status === "testing" ? "验证中" : "待验证"}
+                    {s.status === "effective" ? t("已验证有效") : s.status === "ineffective" ? t("未生效") : s.status === "testing" ? t("验证中") : t("待验证")}
                   </Badge>
                   {(s.status === "open" || s.status === "testing") && (
                     <Button size="sm" variant="ghost" className="h-7" onClick={() => void onVerify(s)}>
-                      提交验证结论
+                      {t("提交验证结论")}
                     </Button>
                   )}
                 </div>
@@ -639,7 +646,7 @@ function DiagnosisPanel({
 
       {attempts.length > 0 && (
         <div className="rounded-lg border p-3">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">答题记录（{attempts.length}）</p>
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">{t("答题记录（{n}）", { n: attempts.length })}</p>
           <ul className="max-h-44 space-y-1 overflow-y-auto text-xs">
             {[...attempts].reverse().map((a) => (
               <li key={a.id} className="flex items-center gap-2">
@@ -650,7 +657,7 @@ function DiagnosisPanel({
                 )}
                 <span>{fmtDateTime(a.occurred_at)}</span>
                 <span className="text-muted-foreground">
-                  {a.correct ? "答对" : `答错·${L.kdErrorCategory[a.error_category] ?? a.error_category}`} · {a.independent ? "独立" : "有辅助"}
+                  {a.correct ? t("答对") : t("答错·{cat}", { cat: L.kdErrorCategory[a.error_category] ?? a.error_category })} · {a.independent ? t("独立") : t("有辅助")}
                 </span>
               </li>
             ))}
@@ -661,12 +668,12 @@ function DiagnosisPanel({
       <Dialog open={correctOpen} onOpenChange={setCorrectOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>纠正诊断</DialogTitle>
-            <DialogDescription>你的纠正会被记录为证据，帮助系统更贴近真实情况。</DialogDescription>
+            <DialogTitle>{t("纠正诊断")}</DialogTitle>
+            <DialogDescription>{t("你的纠正会被记录为证据，帮助系统更贴近真实情况。")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>正确类别</Label>
+              <Label>{t("正确类别")}</Label>
               <Select value={correction.category} onChange={(e) => setCorrection({ ...correction, category: e.target.value })}>
                 {Object.entries(L.kdDiagCategory).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
@@ -674,12 +681,12 @@ function DiagnosisPanel({
               </Select>
             </div>
             <div>
-              <Label>纠正理由</Label>
-              <Textarea placeholder="例如：看答案能懂，是提取失败不是概念问题" value={correction.note} onChange={(e) => setCorrection({ ...correction, note: e.target.value })} />
+              <Label>{t("纠正理由")}</Label>
+              <Textarea placeholder={t("例如：看答案能懂，是提取失败不是概念问题")} value={correction.note} onChange={(e) => setCorrection({ ...correction, note: e.target.value })} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCorrectOpen(false)}>取消</Button>
+            <Button variant="outline" onClick={() => setCorrectOpen(false)}>{t("action.cancel")}</Button>
             <Button
               onClick={async () => {
                 await onCorrect(correction.category, correction.note);

@@ -25,10 +25,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { del, get, getWith, patch, post } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
+import { useT } from "@/lib/i18n";
 import { fmtDate, fmtPercent } from "@/lib/format";
 import type { CardItem, Deck, DueQueue, Experiment, ExperimentResults, MLStats, ReviewResult } from "@/lib/types";
 
 export default function MLPage() {
+  const t = useT();
   const stats = useApi<MLStats>("/ml/stats");
   const decks = useApi<Deck[]>("/ml/decks");
   const due = useApi<DueQueue>("/ml/due?limit=20");
@@ -44,15 +46,15 @@ export default function MLPage() {
   }, [cardsDeck]);
 
   const createDeck = async () => {
-    if (!deckForm.name.trim()) return toast.error("请填写卡组名称");
+    if (!deckForm.name.trim()) return toast.error(t("请填写卡组名称"));
     await post("/ml/decks", deckForm);
     setDeckForm({ name: "", description: "" });
-    toast.success("卡组已创建");
+    toast.success(t("卡组已创建"));
     void decks.refresh();
   };
 
   const createCard = async () => {
-    if (!cardForm.deck_id || !cardForm.front.trim()) return toast.error("请选择卡组并填写卡片正面");
+    if (!cardForm.deck_id || !cardForm.front.trim()) return toast.error(t("请选择卡组并填写卡片正面"));
     await post("/ml/cards", {
       deck_id: Number(cardForm.deck_id),
       front: cardForm.front,
@@ -60,7 +62,7 @@ export default function MLPage() {
       tags: cardForm.tags ? cardForm.tags.split(/[,,]/).map((t) => t.trim()).filter(Boolean) : [],
     });
     setCardForm({ ...cardForm, front: "", back: "" });
-    toast.success("卡片已创建，立即可复习");
+    toast.success(t("卡片已创建，立即可复习"));
     void due.refresh();
     void stats.refresh();
   };
@@ -68,14 +70,14 @@ export default function MLPage() {
   return (
     <div>
       <AIBanner />
-      <PageHeader title="记忆实验室" description="用自己的数据检验记忆策略：主动回忆 + FSRS 间隔调度 + 对照实验。" />
+      <PageHeader title={t("记忆实验室")} description={t("用自己的数据检验记忆策略：主动回忆 + FSRS 间隔调度 + 对照实验。")} />
 
       <Tabs defaultValue="review">
         <TabsList>
-          <TabsTrigger value="review"><BrainCircuit className="h-4 w-4" /> 复习</TabsTrigger>
-          <TabsTrigger value="cards">卡片管理</TabsTrigger>
-          <TabsTrigger value="stats">统计</TabsTrigger>
-          <TabsTrigger value="experiments"><FlaskConical className="h-4 w-4" /> 对照实验</TabsTrigger>
+          <TabsTrigger value="review"><BrainCircuit className="h-4 w-4" /> {t("复习")}</TabsTrigger>
+          <TabsTrigger value="cards">{t("卡片管理")}</TabsTrigger>
+          <TabsTrigger value="stats">{t("统计")}</TabsTrigger>
+          <TabsTrigger value="experiments"><FlaskConical className="h-4 w-4" /> {t("对照实验")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="review">
@@ -84,13 +86,13 @@ export default function MLPage() {
 
         <TabsContent value="cards" className="grid gap-4 lg:grid-cols-3">
           <Card>
-            <CardHeader><CardTitle className="text-base">新建卡组</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">{t("新建卡组")}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <Input placeholder="卡组名称" value={deckForm.name} onChange={(e) => setDeckForm({ ...deckForm, name: e.target.value })} />
+              <Input placeholder={t("卡组名称")} value={deckForm.name} onChange={(e) => setDeckForm({ ...deckForm, name: e.target.value })} />
               <Input placeholder="描述（可选）" value={deckForm.description} onChange={(e) => setDeckForm({ ...deckForm, description: e.target.value })} />
-              <Button size="sm" onClick={() => void createDeck()}><Plus /> 创建</Button>
+              <Button size="sm" onClick={() => void createDeck()}><Plus /> {t("创建")}</Button>
               <div className="pt-2">
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">已有卡组</p>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("已有卡组")}</p>
                 <ul className="space-y-1 text-sm">
                   {(decks.data ?? []).map((d) => (
                     <li key={d.id} className="flex items-center justify-between rounded px-2 py-1 hover:bg-accent">
@@ -106,24 +108,24 @@ export default function MLPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">新建卡片</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">{t("新建卡片")}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <Select value={cardForm.deck_id} onChange={(e) => setCardForm({ ...cardForm, deck_id: e.target.value })}>
-                <option value="">选择卡组…</option>
+                <option value="">{t("选择卡组…")}</option>
                 {(decks.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </Select>
-              <Textarea placeholder="正面（问题/提示）" value={cardForm.front} onChange={(e) => setCardForm({ ...cardForm, front: e.target.value })} />
-              <Textarea placeholder="背面（答案）" value={cardForm.back} onChange={(e) => setCardForm({ ...cardForm, back: e.target.value })} />
-              <Input placeholder="标签（逗号分隔，可选）" value={cardForm.tags} onChange={(e) => setCardForm({ ...cardForm, tags: e.target.value })} />
-              <Button size="sm" onClick={() => void createCard()}><Plus /> 添加卡片</Button>
+              <Textarea placeholder={t("正面（问题/提示）")} value={cardForm.front} onChange={(e) => setCardForm({ ...cardForm, front: e.target.value })} />
+              <Textarea placeholder={t("背面（答案）")} value={cardForm.back} onChange={(e) => setCardForm({ ...cardForm, back: e.target.value })} />
+              <Input placeholder={t("标签（逗号分隔，可选）")} value={cardForm.tags} onChange={(e) => setCardForm({ ...cardForm, tags: e.target.value })} />
+              <Button size="sm" onClick={() => void createCard()}><Plus /> {t("添加卡片")}</Button>
             </CardContent>
           </Card>
 
           <Card className="lg:col-span-1">
             <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">卡片列表</CardTitle>
+              <CardTitle className="text-base">{t("卡片列表")}</CardTitle>
               <Select className="h-8 w-32 text-xs" value={cardsDeck} onChange={(e) => setCardsDeck(e.target.value)}>
-                <option value="">全部卡组</option>
+                <option value="">{t("全部卡组")}</option>
                 {(decks.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </Select>
             </CardHeader>
@@ -139,7 +141,7 @@ export default function MLPage() {
                   <p className="mt-0.5 text-muted-foreground">{c.back}</p>
                   {c.state && (
                     <p className="mt-1.5 text-xs text-muted-foreground">
-                      {c.state.reps > 0 ? `已复习 ${c.state.reps} 次 · 下次 ${fmtDate(c.state.due_at)}` : "未复习 · 立即可复习"}
+                      {c.state.reps > 0 ? t("已复习 {n} 次 · 下次 {date}", { n: c.state.reps, date: fmtDate(c.state.due_at) }) : t("未复习 · 立即可复习")}
                     </p>
                   )}
                 </div>
@@ -162,6 +164,7 @@ export default function MLPage() {
 }
 
 function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; loading: boolean; refresh: () => Promise<void> }; onReviewed: () => void }) {
+  const t = useT();
   const [index, setIndex] = React.useState(0);
   const [revealed, setRevealed] = React.useState(false);
   const [shownAt, setShownAt] = React.useState(0); // 客户端挂载后设置，避免预渲染期间读时钟
@@ -186,9 +189,9 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
     return (
       <EmptyState
         icon={BrainCircuit}
-        title="当前没有到期卡片"
-        hint="全部卡片都在计划的间隔上。新建卡片或稍后再来。"
-        action={<Button variant="outline" size="sm" onClick={() => void due.refresh()}><RefreshCcw /> 刷新队列</Button>}
+        title={t("当前没有到期卡片")}
+        hint={t("全部卡片都在计划的间隔上。新建卡片或稍后再来。")}
+        action={<Button variant="outline" size="sm" onClick={() => void due.refresh()}><RefreshCcw /> {t("刷新队列")}</Button>}
       />
     );
   }
@@ -201,7 +204,7 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
         rating,
         duration_ms: Date.now() - shownAt,
       });
-      toast.success(`已记录：下次 ${r.interval_display} 后复习`);
+      toast.success(t("已记录：下次 {x} 后复习", { x: r.interval_display }));
       onReviewed();
       if (index + 1 < cards.length) setIndex(index + 1);
       else { setIndex(0); await due.refresh(); }
@@ -213,7 +216,7 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
-        <span>队列中还有 {Math.max(0, (due.data?.total_due ?? 0))} 张到期</span>
+        <span>{t("队列中还有 {n} 张到期", { n: Math.max(0, due.data?.total_due ?? 0) })}</span>
         <span>{index + 1} / {cards.length}</span>
       </div>
       <Card className="min-h-72">
@@ -224,19 +227,19 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
               <p className="whitespace-pre-wrap text-lg">{card.back}</p>
             </div>
           ) : (
-            <p className="mt-6 text-sm text-muted-foreground">先在心里回忆答案，再点击显示</p>
+            <p className="mt-6 text-sm text-muted-foreground">{t("先在心里回忆答案，再点击显示")}</p>
           )}
           {!revealed ? (
             <Button className="mt-8" size="lg" onClick={() => { setRevealed(true); void getIntervals(card.id).then(setIntervals); }}>
-              <Eye /> 显示答案
+              <Eye /> {t("显示答案")}
             </Button>
           ) : (
             <div className="mt-8 grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
               {[
-                { r: 1, label: "忘记了", key: "1" },
-                { r: 2, label: "想起来了", key: "2" },
-                { r: 3, label: "有点费劲", key: "3" },
-                { r: 4, label: "很轻松", key: "4" },
+                { r: 1, label: t("忘记了"), key: "1" },
+                { r: 2, label: t("想起来了"), key: "2" },
+                { r: 3, label: t("有点费劲"), key: "3" },
+                { r: 4, label: t("很轻松"), key: "4" },
               ].map(({ r, label }) => (
                 <Button key={r} variant={r === 1 ? "destructive" : r === 4 ? "default" : "outline"} disabled={busy} onClick={() => void review(r)}>
                   {label}
@@ -248,7 +251,7 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
         </CardContent>
       </Card>
       <p className="mt-3 text-center text-xs text-muted-foreground">
-        评分 1=完全忘记 2=勉强想起 3=想起但费劲 4=轻松想起；间隔由 FSRS-6 算法按你的记忆状态计算。
+        {t("评分 1=完全忘记 2=勉强想起 3=想起但费劲 4=轻松想起；间隔由 FSRS-6 算法按你的记忆状态计算。")}
       </p>
     </div>
   );
@@ -263,6 +266,7 @@ async function getIntervals(cardId: number): Promise<Record<number, string>> {
 }
 
 function StatsPanel({ stats }: { stats: { data: MLStats | null; loading: boolean; error: Error | null; refresh: () => Promise<void> } }) {
+  const t = useT();
   if (stats.loading && !stats.data) return <LoadingBlock rows={4} />;
   if (stats.error) return <ErrorState error={stats.error} onRetry={stats.refresh} />;
   const s = stats.data;
@@ -271,7 +275,7 @@ function StatsPanel({ stats }: { stats: { data: MLStats | null; loading: boolean
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">每日复习次数（近 14 天）</CardTitle>
+          <CardTitle className="text-base">{t("每日复习次数（近 14 天）")}</CardTitle>
         </CardHeader>
         <CardContent className="h-60">
           <ResponsiveContainer width="100%" height="100%">
@@ -280,18 +284,18 @@ function StatsPanel({ stats }: { stats: { data: MLStats | null; loading: boolean
               <XAxis dataKey="date" tickFormatter={(v: string) => v.slice(5)} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
               <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
               <ChartTooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="count" name="复习次数" fill="var(--chart-1)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="count" name={t("复习次数")} fill="var(--chart-1)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">记忆状态分布</CardTitle>
+          <CardTitle className="text-base">{t("记忆状态分布")}</CardTitle>
           <CardDescription>
-            共 {s.total_cards} 张 · 到期 {s.due_now} · 近 7 天复习 {s.reviews_last_7d} 次
-            {s.retention_7d !== null && ` · 顺利回忆率 ${fmtPercent(s.retention_7d)}`}
-            {s.again_rate_7d !== null && ` · 遗忘率 ${fmtPercent(s.again_rate_7d)}`}
+            {t("共 {a} 张 · 到期 {b} · 近 7 天复习 {c} 次", { a: s.total_cards, b: s.due_now, c: s.reviews_last_7d })}
+            {s.retention_7d !== null && ` · ${t("顺利回忆率 {p}", { p: fmtPercent(s.retention_7d) })}`}
+            {s.again_rate_7d !== null && ` · ${t("遗忘率 {p}", { p: fmtPercent(s.again_rate_7d) })}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="h-60">
@@ -301,19 +305,19 @@ function StatsPanel({ stats }: { stats: { data: MLStats | null; loading: boolean
               <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
               <YAxis type="category" dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={64} />
               <ChartTooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="count" name="卡片数" fill="var(--chart-2)" radius={[0, 3, 3, 0]} />
+              <Bar dataKey="count" name={t("卡片数")} fill="var(--chart-2)" radius={[0, 3, 3, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle className="text-base">成熟度</CardTitle>
+          <CardTitle className="text-base">{t("成熟度")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-6 text-sm">
-          <div><span className="text-2xl font-bold tabular-nums">{s.maturity.new ?? 0}</span><p className="text-muted-foreground">新卡</p></div>
-          <div><span className="text-2xl font-bold tabular-nums">{s.maturity.learning ?? 0}</span><p className="text-muted-foreground">学习中</p></div>
-          <div><span className="text-2xl font-bold tabular-nums">{s.maturity.review ?? 0}</span><p className="text-muted-foreground">已进入复习循环</p></div>
+          <div><span className="text-2xl font-bold tabular-nums">{s.maturity.new ?? 0}</span><p className="text-muted-foreground">{t("新卡")}</p></div>
+          <div><span className="text-2xl font-bold tabular-nums">{s.maturity.learning ?? 0}</span><p className="text-muted-foreground">{t("学习中")}</p></div>
+          <div><span className="text-2xl font-bold tabular-nums">{s.maturity.review ?? 0}</span><p className="text-muted-foreground">{t("已进入复习循环")}</p></div>
         </CardContent>
       </Card>
     </div>
@@ -331,16 +335,17 @@ function ExperimentsPanel({
   cards: CardItem[];
   onChanged: () => void;
 }) {
+  const t = useT();
   const [form, setForm] = React.useState({ question: "", strategy_a: "", strategy_b: "", delayed_test_days: 7 });
   const [assignExpId, setAssignExpId] = React.useState<number | null>(null);
   const [selected, setSelected] = React.useState<number[]>([]);
   const [results, setResults] = React.useState<Record<number, ExperimentResults>>({});
 
   const create = async () => {
-    if (!form.question.trim() || !form.strategy_a.trim() || !form.strategy_b.trim()) return toast.error("请填写实验问题与两种策略");
+    if (!form.question.trim() || !form.strategy_a.trim() || !form.strategy_b.trim()) return toast.error(t("请填写实验问题与两种策略"));
     await post("/ml/experiments", { ...form, metric: "retention" });
     setForm({ question: "", strategy_a: "", strategy_b: "", delayed_test_days: 7 });
-    toast.success("实验已创建，下一步选择卡片随机分组");
+    toast.success(t("实验已创建，下一步选择卡片随机分组"));
     void experiments.refresh();
   };
 
@@ -350,9 +355,9 @@ function ExperimentsPanel({
   };
 
   const assign = async (expId: number) => {
-    if (selected.length < 2) return toast.error("至少选择 2 张卡片");
+    if (selected.length < 2) return toast.error(t("至少选择 2 张卡片"));
     await post(`/ml/experiments/${expId}/assign`, { card_ids: selected });
-    toast.success(`已随机分组 ${selected.length} 张卡片`);
+    toast.success(t("已随机分组 {n} 张卡片", { n: selected.length }));
     setSelected([]);
     setAssignExpId(null);
     onChanged();
@@ -366,32 +371,32 @@ function ExperimentsPanel({
     <div className="grid gap-4 lg:grid-cols-3">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">新建对照实验</CardTitle>
-          <CardDescription>服务端随机分组；结果只代表你个人的参考证据。</CardDescription>
+          <CardTitle className="text-base">{t("新建对照实验")}</CardTitle>
+          <CardDescription>{t("服务端随机分组；结果只代表你个人的参考证据。")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <Label>实验问题</Label>
-            <Textarea placeholder="如：间隔复习 vs 集中复习，48 小时后谁记得牢？" value={form.question} onChange={(e) => setForm({ ...form, question: e.target.value })} />
+            <Label>{t("实验问题")}</Label>
+            <Textarea placeholder={t("如：间隔复习 vs 集中复习，48 小时后谁记得牢？")} value={form.question} onChange={(e) => setForm({ ...form, question: e.target.value })} />
           </div>
           <div>
-            <Label>策略 A</Label>
-            <Input placeholder="如：每天复习一次" value={form.strategy_a} onChange={(e) => setForm({ ...form, strategy_a: e.target.value })} />
+            <Label>{t("策略 A")}</Label>
+            <Input placeholder={t("如：每天复习一次")} value={form.strategy_a} onChange={(e) => setForm({ ...form, strategy_a: e.target.value })} />
           </div>
           <div>
-            <Label>策略 B</Label>
-            <Input placeholder="如：考前集中复习" value={form.strategy_b} onChange={(e) => setForm({ ...form, strategy_b: e.target.value })} />
+            <Label>{t("策略 B")}</Label>
+            <Input placeholder={t("如：考前集中复习")} value={form.strategy_b} onChange={(e) => setForm({ ...form, strategy_b: e.target.value })} />
           </div>
           <div>
-            <Label>延迟测试天数</Label>
+            <Label>{t("延迟测试天数")}</Label>
             <Input type="number" min={1} max={365} value={form.delayed_test_days} onChange={(e) => setForm({ ...form, delayed_test_days: Number(e.target.value) })} />
           </div>
-          <Button size="sm" onClick={() => void create()}><Plus /> 创建实验</Button>
+          <Button size="sm" onClick={() => void create()}><Plus /> {t("创建实验")}</Button>
         </CardContent>
       </Card>
 
       <div className="space-y-4 lg:col-span-2">
-        {list.length === 0 && <EmptyState icon={FlaskConical} title="还没有实验" hint="创建实验后选择一组卡片，系统会随机分成 A/B 两组。" />}
+        {list.length === 0 && <EmptyState icon={FlaskConical} title={t("还没有实验")} hint={t("创建实验后选择一组卡片，系统会随机分成 A/B 两组。")} />}
         {list.map((e) => {
           const r = results[e.id];
           return (
@@ -402,20 +407,20 @@ function ExperimentsPanel({
                   <CardDescription className="mt-1">
                     A：{e.strategy_a} · B：{e.strategy_b} · 状态：
                     <Badge variant={e.status === "running" ? "default" : e.status === "completed" ? "success" : "muted"} className="ml-1">
-                      {e.status === "running" ? "进行中" : e.status === "completed" ? "已完成" : "准备中"}
+                      {e.status === "running" ? t("进行中") : e.status === "completed" ? t("已完成") : t("准备中")}
                     </Badge>
                   </CardDescription>
                 </div>
                 <div className="flex shrink-0 gap-2">
-                  <Button size="sm" variant="outline" onClick={() => { setAssignExpId(e.id); setSelected([]); }}>选择卡片分组</Button>
-                  <Button size="sm" variant="ghost" onClick={() => void loadResults(e.id)}>查看结果</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setAssignExpId(e.id); setSelected([]); }}>{t("选择卡片分组")}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => void loadResults(e.id)}>{t("查看结果")}</Button>
                 </div>
               </CardHeader>
               {assignExpId === e.id && (
                 <CardContent className="border-t pt-4">
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">勾选参与实验的卡片（≥2 张，将随机均分）</p>
-                    <Button size="sm" onClick={() => void assign(e.id)}>随机分组</Button>
+                    <p className="text-sm text-muted-foreground">{t("勾选参与实验的卡片（≥2 张，将随机均分）")}</p>
+                    <Button size="sm" onClick={() => void assign(e.id)}>{t("随机分组")}</Button>
                   </div>
                   <div className="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto sm:grid-cols-2">
                     {(decks.length > 0 ? cards : []).map((c) => (
@@ -428,7 +433,7 @@ function ExperimentsPanel({
                         <span className="min-w-0 flex-1 truncate">{c.front}</span>
                       </label>
                     ))}
-                    {cards.length === 0 && <p className="text-sm text-muted-foreground">先在「卡片管理」中创建卡片</p>}
+                    {cards.length === 0 && <p className="text-sm text-muted-foreground">{t("先在「卡片管理」中创建卡片")}</p>}
                   </div>
                 </CardContent>
               )}
@@ -437,12 +442,12 @@ function ExperimentsPanel({
                   <div className="grid gap-3 sm:grid-cols-2">
                     {r.groups.map((g) => (
                       <div key={g.name} className="rounded-lg border p-3 text-sm">
-                        <p className="font-semibold">组 {g.name}：{g.strategy}</p>
+                        <p className="font-semibold">{t("组 {name}", { name: g.name })}：{g.strategy}</p>
                         <ul className="mt-1.5 space-y-0.5 text-muted-foreground">
-                          <li>卡片数：{g.n_cards}</li>
-                          <li>复习次数：{g.n_reviews}</li>
-                          <li>遗忘率：{g.again_rate === null ? "暂无数据" : fmtPercent(g.again_rate, 1)}</li>
-                          <li>平均回忆用时：{g.mean_duration_ms === null ? "—" : `${(g.mean_duration_ms / 1000).toFixed(1)}s`}</li>
+                          <li>{t("卡片数：")}{g.n_cards}</li>
+                          <li>{t("复习次数：")}{g.n_reviews}</li>
+                          <li>{t("遗忘率：")}{g.again_rate === null ? t("暂无数据") : fmtPercent(g.again_rate, 1)}</li>
+                          <li>{t("平均回忆用时：")}{g.mean_duration_ms === null ? "—" : `${(g.mean_duration_ms / 1000).toFixed(1)}s`}</li>
                         </ul>
                       </div>
                     ))}

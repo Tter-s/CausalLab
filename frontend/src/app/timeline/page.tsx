@@ -9,20 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getWith } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
-import { L } from "@/lib/i18n";
+import { useL, useT } from "@/lib/i18n";
 import { dayKey, dayLabel, fmtDateTime } from "@/lib/format";
 import type { EvidenceItem, EventItem, EventPage, EntityLinkItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const MODULES = [
-  { id: "", label: "全部" },
-  { id: "kd", label: "知识债务" },
-  { id: "ml", label: "记忆实验室" },
-  { id: "dtm", label: "决策时间机" },
-  { id: "ta", label: "任务复盘" },
-  { id: "hyp", label: "假设" },
-  { id: "loop", label: "改进循环" },
-  { id: "sys", label: "系统" },
+const MODULES: { id: string; key: string }[] = [
+  { id: "", key: "全部" },
+  { id: "kd", key: "kd" },
+  { id: "ml", key: "ml" },
+  { id: "dtm", key: "dtm" },
+  { id: "ta", key: "ta" },
+  { id: "hyp", key: "hyp" },
+  { id: "loop", key: "loop" },
+  { id: "sys", key: "sys" },
 ];
 
 function eventHref(e: EventItem): string {
@@ -36,6 +36,8 @@ function eventHref(e: EventItem): string {
 }
 
 export default function TimelinePage() {
+  const t = useT();
+  const L = useL();
   const [module, setModule] = React.useState("");
   const [q, setQ] = React.useState("");
   const [query, setQuery] = React.useState("");
@@ -72,8 +74,8 @@ export default function TimelinePage() {
   return (
     <div>
       <PageHeader
-        title="证据时间线"
-        description="一个判断是在什么时候、依据什么形成的？后来出现了哪些新证据？判断为什么变化？"
+        title={t("证据时间线")}
+        description={t("一个判断是在什么时候、依据什么形成的？后来出现了哪些新证据？判断为什么变化？")}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -84,7 +86,7 @@ export default function TimelinePage() {
             variant={module === m.id ? "default" : "outline"}
             onClick={() => setModule(m.id)}
           >
-            {m.label}
+            {m.id ? L.module[m.id] : t("全部")}
           </Button>
         ))}
         <form
@@ -96,11 +98,11 @@ export default function TimelinePage() {
         >
           <input
             className="h-8 w-52 rounded-md border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/50"
-            placeholder="搜索事件标题…"
+            placeholder={t("搜索事件标题…")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <Button size="sm" type="submit">搜索</Button>
+          <Button size="sm" type="submit">{t("action.search")}</Button>
         </form>
       </div>
 
@@ -109,7 +111,7 @@ export default function TimelinePage() {
       ) : timeline.error ? (
         <ErrorState error={timeline.error} onRetry={timeline.refresh} />
       ) : groups.length === 0 ? (
-        <EmptyState icon={Timer} title="没有匹配的事件" hint="换一个筛选条件，或先在其他模块产生一些记录。" />
+        <EmptyState icon={Timer} title={t("没有匹配的事件")} hint={t("换一个筛选条件，或先在其他模块产生一些记录。")} />
       ) : (
         <div className="space-y-6">
           {groups.map(([day, evs]) => (
@@ -162,14 +164,14 @@ export default function TimelinePage() {
               </pre>
             )}
 
-            <h3 className="mb-2 text-sm font-semibold">证据记录</h3>
-            {evidence.length === 0 && <p className="mb-4 text-sm text-muted-foreground">暂无证据记录</p>}
+            <h3 className="mb-2 text-sm font-semibold">{t("证据记录")}</h3>
+            {evidence.length === 0 && <p className="mb-4 text-sm text-muted-foreground">{t("暂无证据记录")}</p>}
             <ul className="mb-6 space-y-2">
               {evidence.map((ev) => (
                 <li key={ev.id} className="rounded-lg border p-3 text-sm">
                   <div className="mb-1 flex items-center gap-2">
                     <EvidenceBadge kind={ev.kind} />
-                    {ev.confidence !== null && <span className="text-xs text-muted-foreground">可信度 {Math.round(ev.confidence * 100)}%</span>}
+                    {ev.confidence !== null && <span className="text-xs text-muted-foreground">{t("可信度 {p}", { p: Math.round(ev.confidence * 100) + "%" })}</span>}
                     <span className="text-xs text-muted-foreground">{ev.source}</span>
                   </div>
                   <p className="text-muted-foreground">{ev.content}</p>
@@ -177,8 +179,8 @@ export default function TimelinePage() {
               ))}
             </ul>
 
-            <h3 className="mb-2 text-sm font-semibold">跨模块关联</h3>
-            {links.length === 0 && <p className="text-sm text-muted-foreground">暂无关联</p>}
+            <h3 className="mb-2 text-sm font-semibold">{t("跨模块关联")}</h3>
+            {links.length === 0 && <p className="text-sm text-muted-foreground">{t("暂无关联")}</p>}
             <ul className="space-y-1.5">
               {links.map((ln) => (
                 <li key={ln.id} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
@@ -195,7 +197,7 @@ export default function TimelinePage() {
               className="mt-6 block rounded-lg bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground hover:bg-primary/90"
               onClick={() => setSelected(null)}
             >
-              打开源模块查看完整上下文
+              {t("打开源模块查看完整上下文")}
             </Link>
           </div>
         </div>

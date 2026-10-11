@@ -12,21 +12,23 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { post } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
+import { useT } from "@/lib/i18n";
 import { fmtDate } from "@/lib/format";
 import type { Improvement, Project } from "@/lib/types";
 
 export default function TAPage() {
+  const t = useT();
   const projects = useApi<Project[]>("/ta/projects");
   const improvements = useApi<Improvement[]>("/ta/improvements");
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: "", description: "" });
 
   const create = async () => {
-    if (!form.name.trim()) return toast.error("请填写项目名称");
+    if (!form.name.trim()) return toast.error(t("请填写项目名称"));
     await post("/ta/projects", form);
     setOpen(false);
     setForm({ name: "", description: "" });
-    toast.success("项目已创建");
+    toast.success(t("项目已创建"));
     void projects.refresh();
   };
 
@@ -38,13 +40,13 @@ export default function TAPage() {
     <div>
       <AIBanner />
       <PageHeader
-        title="任务复盘"
-        description="用真实的过程数据（阻塞、返工、中断）解释延期与失败，而不是事后归因于态度。"
-        actions={<Button onClick={() => setOpen(true)}><Plus /> 新建项目</Button>}
+        title={t("任务复盘")}
+        description={t("用真实的过程数据（阻塞、返工、中断）解释延期与失败，而不是事后归因于态度。")}
+        actions={<Button onClick={() => setOpen(true)}><Plus /> {t("新建项目")}</Button>}
       />
 
       {list.length === 0 ? (
-        <EmptyState icon={Layers} title="还没有项目" hint="创建项目后添加任务、预估耗时，执行中记录每一次阻塞与返工。" action={<Button onClick={() => setOpen(true)}><Plus /> 创建项目</Button>} />
+        <EmptyState icon={Layers} title={t("还没有项目")} hint={t("创建项目后添加任务、预估耗时，执行中记录每一次阻塞与返工。")} action={<Button onClick={() => setOpen(true)}><Plus /> {t("创建项目")}</Button>} />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {list.map((p) => (
@@ -54,13 +56,13 @@ export default function TAPage() {
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base">{p.name}</CardTitle>
                     <Badge variant={p.status === "active" ? "default" : p.status === "done" ? "success" : "muted"}>
-                      {p.status === "active" ? "进行中" : p.status === "done" ? "已完成" : "已归档"}
+                      {p.status === "active" ? t("进行中") : p.status === "done" ? t("已完成") : t("已归档")}
                     </Badge>
                   </div>
-                  <CardDescription className="line-clamp-2">{p.description || "（无描述）"}</CardDescription>
+                  <CardDescription className="line-clamp-2">{p.description || t("（无描述）")}</CardDescription>
                 </CardHeader>
                 <CardContent className="text-xs text-muted-foreground">
-                  <p>开始 {fmtDate(p.started_at)}{p.deadline && ` · 截止 ${fmtDate(p.deadline)}`}</p>
+                  <p>{t("开始 {x}", { x: fmtDate(p.started_at) })}{p.deadline && ` · ${t("截止 {x}", { x: fmtDate(p.deadline) })}`}</p>
                 </CardContent>
               </Card>
             </Link>
@@ -72,13 +74,13 @@ export default function TAPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>新建项目</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("新建项目")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>名称 *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div><Label>描述</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+            <div><Label>{t("名称 *")}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div><Label>{t("描述")}</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>取消</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("action.cancel")}</Button>
             <Button onClick={() => void create()}>创建</Button>
           </DialogFooter>
         </DialogContent>
@@ -88,10 +90,11 @@ export default function TAPage() {
 }
 
 export function ImprovementsSection({ improvements, onChanged }: { improvements: { data: Improvement[] | null }; onChanged: () => void }) {
+  const t = useT();
   const setStatus = async (id: number, status: string) => {
     const { patch } = await import("@/lib/api");
     await patch(`/ta/improvements/${id}`, { status });
-    toast.success("改进措施状态已更新");
+    toast.success(t("改进措施状态已更新"));
     onChanged();
   };
   const list = improvements.data ?? [];
@@ -99,8 +102,8 @@ export function ImprovementsSection({ improvements, onChanged }: { improvements:
   return (
     <Card className="mt-8">
       <CardHeader>
-        <CardTitle className="text-base">改进措施追踪</CardTitle>
-        <CardDescription>从复盘中诞生的改进，追踪其后续效果</CardDescription>
+        <CardTitle className="text-base">{t("改进措施追踪")}</CardTitle>
+        <CardDescription>{t("从复盘中诞生的改进，追踪其后续效果")}</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="divide-y">
@@ -112,10 +115,10 @@ export function ImprovementsSection({ improvements, onChanged }: { improvements:
                 value={a.status}
                 onChange={(e) => void setStatus(a.id, e.target.value)}
               >
-                <option value="proposed">已提出</option>
-                <option value="trying">试行中</option>
-                <option value="adopted">已采纳</option>
-                <option value="discarded">已放弃</option>
+                <option value="proposed">{t("已提出")}</option>
+                <option value="trying">{t("试行中")}</option>
+                <option value="adopted">{t("已采纳")}</option>
+                <option value="discarded">{t("已放弃")}</option>
               </select>
             </li>
           ))}

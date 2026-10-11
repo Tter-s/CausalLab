@@ -1,6 +1,15 @@
 /** 日期与显示格式化工具（UTC 输入 → 本地显示）。 */
 import { format, formatDistanceToNow, isValid, parseISO } from "date-fns";
-import { zhCN } from "date-fns/locale";
+import { enUS, zhCN } from "date-fns/locale";
+
+/** 日期措辞跟随界面语言（由 I18nProvider 设置）。 */
+let dateLocale: "zh" | "en" = "zh";
+export function setDateLocale(locale: "zh" | "en") {
+  dateLocale = locale;
+}
+function dfnsLocale() {
+  return dateLocale === "en" ? enUS : zhCN;
+}
 
 export function parseDate(s: string | null | undefined): Date | null {
   if (!s) return null;
@@ -21,7 +30,7 @@ export function fmtDate(s: string | null | undefined): string {
 export function fmtRelative(s: string | null | undefined): string {
   const d = parseDate(s);
   if (!d) return "—";
-  return formatDistanceToNow(d, { addSuffix: true, locale: zhCN });
+  return formatDistanceToNow(d, { addSuffix: true, locale: dfnsLocale() });
 }
 
 export function fmtPercent(v: number | null | undefined, digits = 0): string {
@@ -67,8 +76,8 @@ export function dayLabel(key: string): string {
   const d = parseDate(key);
   if (!d) return key;
   const today = format(new Date(), "yyyy-MM-dd");
-  if (key === today) return "今天";
+  if (key === today) return dateLocale === "en" ? "Today" : "今天";
   const yesterday = format(new Date(Date.now() - 86400000), "yyyy-MM-dd");
-  if (key === yesterday) return "昨天";
-  return format(d, "M月d日 EEEE", { locale: zhCN });
+  if (key === yesterday) return dateLocale === "en" ? "Yesterday" : "昨天";
+  return format(d, dateLocale === "en" ? "EEE, MMM d" : "M月d日 EEEE", { locale: dfnsLocale() });
 }
