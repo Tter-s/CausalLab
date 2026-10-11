@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { getWith } from "@/lib/api";
 import type { SearchOut } from "@/lib/types";
+import { BrandMark } from "@/components/brand-mark";
 import { I18nProvider, useI18n, useL, useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -250,9 +251,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         {/* 桌面侧边栏 */}
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r bg-sidebar lg:flex">
           <Link href="/" className="flex items-center gap-2.5 px-5 py-5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <BrainCircuit className="h-5 w-5" />
-            </span>
+            <BrandMark className="h-8 w-8 shrink-0 rounded-lg shadow-sm" />
             <span>
               <span className="block text-sm font-bold leading-tight">{t("app.name")}</span>
               <span className="block text-[11px] text-muted-foreground">{t("app.tagline")}</span>
@@ -273,7 +272,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
             <aside className="absolute inset-y-0 left-0 flex w-64 flex-col border-r bg-sidebar">
               <div className="flex items-center justify-between px-5 py-4">
                 <span className="flex items-center gap-2 font-bold">
-                  <BrainCircuit className="h-5 w-5 text-primary" /> CausaLab
+                  <BrandMark className="h-6 w-6 rounded-md" /> CausaLab
                 </span>
                 <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)}>
                   <X className="h-4 w-4" />

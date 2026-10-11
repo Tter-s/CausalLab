@@ -554,4 +554,6 @@ export const enPageStrings: Record<string, string> = {
   "需要登录": "Login required",
   "安全": "Security",
   "个人学习、决策与行动实验室": "Personal learning, decision & action lab",
+  "加载更多": "Load more",
+  "已加载全部 {n} 条": "All {n} events loaded",
 };

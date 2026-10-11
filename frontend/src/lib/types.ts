@@ -17,6 +17,10 @@ export interface EventItem {
 export interface EventPage {
   items: EventItem[];
   total: number;
+  /** 游标分页：以最后一行的 (occurred_at, id) 为下一页起点 */
+  has_more: boolean;
+  next_before_at: string | null;
+  next_before_id: number | null;
 }
 
 // ---------- KD ----------

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin, utcnow
@@ -24,6 +24,12 @@ class EventLog(Base):
     detail: Mapped[dict] = mapped_column(JSON, default=dict)
     importance: Mapped[int] = mapped_column(Integer, default=1)  # 1 普通 2 重要 3 关键
     occurred_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+    # 时间线按 (occurred_at DESC, id DESC) 排序与游标翻页；模块筛选按 (module, occurred_at) 过滤
+    __table_args__ = (
+        Index("ix_events_occurred_id", "occurred_at", "id"),
+        Index("ix_events_module_occurred", "module", "occurred_at"),
+    )
 
 
 class EvidenceRecord(Base, TimestampMixin):

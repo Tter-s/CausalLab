@@ -1,10 +1,10 @@
 """跨模块 API：统一事件时间线 / 证据 / 实体链接 / 假设实验室 / 改进循环 / 搜索 / 仪表盘。"""
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, tuple_
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -73,8 +73,15 @@ def timeline(
     days: int | None = None,
     limit: int = 50,
     offset: int = 0,
+    before_at: str | None = None,
+    before_id: int | None = None,
     db: Session = Depends(get_db),
 ):
+    """统一事件流。两种翻页方式：
+    - offset/limit：传统分页（兼容旧客户端）；
+    - before_at + before_id：游标分页（推荐）——以上一页最后一行的 (occurred_at, id) 为起点，
+      走 (occurred_at, id) 复合索引，深翻页性能稳定，且不会被新增事件打乱页序。
+    """
     stmt = select(EventLog).order_by(EventLog.occurred_at.desc(), EventLog.id.desc())
     if module:
         stmt = stmt.where(EventLog.module == module)
@@ -83,8 +90,28 @@ def timeline(
     if q:
         stmt = stmt.where(EventLog.title.like(f"%{q}%"))
     total = int(db.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
-    items = list(db.scalars(stmt.limit(limit).offset(offset)))
-    return EventPage(items=[EventOut.model_validate(e, from_attributes=True) for e in items], total=total)
+
+    cursor_mode = before_at is not None and before_id is not None
+    if cursor_mode:
+        try:
+            before_dt = datetime.fromisoformat(before_at.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(status_code=422, detail="before_at 不是合法的 ISO 时间") from None
+        if before_dt.tzinfo is not None:
+            before_dt = before_dt.replace(tzinfo=None)
+        stmt = stmt.where(tuple_(EventLog.occurred_at, EventLog.id) < tuple_(before_dt, before_id))
+
+    rows = list(db.scalars(stmt.limit(limit + 1)))
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    next_before_at = rows[-1].occurred_at.isoformat() if has_more and rows else None
+    return EventPage(
+        items=[EventOut.model_validate(e, from_attributes=True) for e in rows],
+        total=total,
+        has_more=has_more,
+        next_before_at=next_before_at,
+        next_before_id=rows[-1].id if has_more and rows else None,
+    )
 
 
 @router.get("/timeline/entity", response_model=list[EventOut])

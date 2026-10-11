@@ -2,7 +2,8 @@
 /** 登录页：启用密码保护后，未认证访问任意页面会被重定向到这里。 */
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { BrainCircuit, Loader2, Lock } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 import { post } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -47,9 +48,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardContent className="flex flex-col items-center p-8 text-center">
-          <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <BrainCircuit className="h-7 w-7" />
-          </span>
+          <BrandMark className="mb-3 h-14 w-14 rounded-xl shadow-md" />
           <h1 className="text-lg font-bold">CausaLab</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("个人学习、决策与行动实验室")}</p>
 

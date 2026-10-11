@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getWith } from "@/lib/api";
-import { useApi } from "@/lib/useApi";
 import { useL, useT } from "@/lib/i18n";
 import { dayKey, dayLabel, fmtDateTime } from "@/lib/format";
 import type { EvidenceItem, EventItem, EventPage, EntityLinkItem } from "@/lib/types";
@@ -24,6 +23,8 @@ const MODULES: { id: string; key: string }[] = [
   { id: "loop", key: "loop" },
   { id: "sys", key: "sys" },
 ];
+
+const PAGE_SIZE = 30;
 
 function eventHref(e: EventItem): string {
   if (e.module === "dtm") return `/dtm/${e.ref_id}`;
@@ -41,10 +42,52 @@ export default function TimelinePage() {
   const [module, setModule] = React.useState("");
   const [q, setQ] = React.useState("");
   const [query, setQuery] = React.useState("");
-  const timeline = useApi<EventPage>(`/timeline?limit=100${module ? `&module=${module}` : ""}${query ? `&q=${encodeURIComponent(query)}` : ""}`);
+  const [items, setItems] = React.useState<EventItem[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [hasMore, setHasMore] = React.useState(false);
+  const [cursor, setCursor] = React.useState<{ at: string; id: number } | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [error, setError] = React.useState<Error | null>(null);
   const [selected, setSelected] = React.useState<EventItem | null>(null);
   const [evidence, setEvidence] = React.useState<EvidenceItem[]>([]);
   const [links, setLinks] = React.useState<EntityLinkItem[]>([]);
+
+  const load = React.useCallback(
+    async (mode: "reset" | "more") => {
+      const params: Record<string, string | number> = { limit: PAGE_SIZE };
+      if (module) params.module = module;
+      if (query) params.q = query;
+      if (mode === "more" && cursor) {
+        params.before_at = cursor.at;
+        params.before_id = cursor.id;
+      }
+      try {
+        if (mode === "reset") setLoading(true);
+        else setLoadingMore(true);
+        setError(null);
+        const page = await getWith<EventPage>("/timeline", params);
+        setTotal(page.total);
+        setHasMore(page.has_more);
+        setCursor(
+          page.has_more && page.next_before_at && page.next_before_id != null
+            ? { at: page.next_before_at, id: page.next_before_id }
+            : null,
+        );
+        setItems((prev) => (mode === "more" ? [...prev, ...page.items] : page.items));
+      } catch (e) {
+        setError(e as Error);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [module, query, cursor],
+  );
+
+  React.useEffect(() => {
+    void load("reset");
+  }, [module, query, load]);
 
   const openEvent = async (e: EventItem) => {
     setSelected(e);
@@ -61,7 +104,6 @@ export default function TimelinePage() {
     }
   };
 
-  const items = timeline.data?.items ?? [];
   const groups = React.useMemo(() => {
     const map = new Map<string, EventItem[]>();
     for (const e of items) {
@@ -106,14 +148,24 @@ export default function TimelinePage() {
         </form>
       </div>
 
-      {timeline.loading && !timeline.data ? (
+      {loading && items.length === 0 ? (
         <LoadingBlock rows={6} />
-      ) : timeline.error ? (
-        <ErrorState error={timeline.error} onRetry={timeline.refresh} />
+      ) : error ? (
+        <ErrorState error={error} onRetry={() => void load("reset")} />
       ) : groups.length === 0 ? (
         <EmptyState icon={Timer} title={t("没有匹配的事件")} hint={t("换一个筛选条件，或先在其他模块产生一些记录。")} />
       ) : (
         <div className="space-y-6">
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button variant="outline" disabled={loadingMore} onClick={() => void load("more")}>
+                {loadingMore ? t("state.loading") : t("加载更多")}
+              </Button>
+            </div>
+          )}
+          {!hasMore && items.length > 0 && (
+            <p className="pt-2 text-center text-xs text-muted-foreground">{t("已加载全部 {n} 条", { n: total })}</p>
+          )}
           {groups.map(([day, evs]) => (
             <div key={day}>
               <p className="mb-2 text-xs font-semibold text-muted-foreground">{dayLabel(day)}</p>

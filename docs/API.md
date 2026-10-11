@@ -110,7 +110,7 @@
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/timeline?module=&q=&days=&limit=&offset=` | 统一事件流（分页） |
+| GET | `/timeline?module=&q=&days=&limit=&offset=` | 统一事件流。推荐游标翻页：传上一页最后一行的 `before_at`+`before_id`，响应含 `has_more/next_before_at/next_before_id`；offset 模式保留兼容 |
 | GET | `/timeline/entity?module=&ref_type=&ref_id=` | 实体的全部事件 |
 | GET/POST | `/evidence?module=&ref_type=&ref_id=` | 证据（kind: fact/speculation/missing_evidence/…） |
 | GET/POST | `/links?module=&ref_type=&ref_id=` | 跨模块实体链接 |

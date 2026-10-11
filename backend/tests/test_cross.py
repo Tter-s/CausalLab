@@ -225,3 +225,40 @@ def test_cross_module_spawn_experiment(client):
     exp_id = r.json()["experiment_id"]
     links = client.get("/api/links", params={"module": "kd", "ref_type": "diagnosis", "ref_id": diag["id"]}).json()
     assert any(lnk["to_ref_id"] == exp_id and lnk["relation"] == "spawned_from" for lnk in links)
+
+
+def test_timeline_cursor_pagination(client):
+    """游标分页：页间不重叠、顺序稳定、has_more 正确，且不受新增事件影响。"""
+    for i in range(5):
+        client.post("/api/dtm/decisions", json={"title": f"游标测试 {i}", "options": []})
+
+    base = {"q": "游标测试", "limit": 2}
+    p1 = client.get("/api/timeline", params=base).json()
+    assert p1["total"] == 5
+    assert len(p1["items"]) == 2
+    assert p1["has_more"] is True
+    assert p1["next_before_at"] and p1["next_before_id"]
+
+    def fetch(params):
+        return client.get("/api/timeline", params=params).json()
+
+    p2 = fetch({**base, "before_at": p1["next_before_at"], "before_id": p1["next_before_id"]})
+    p3 = fetch({**base, "before_at": p2["next_before_at"], "before_id": p2["next_before_id"]})
+
+    seen1 = {e["ref_id"] for e in p1["items"]}
+    seen2 = {e["ref_id"] for e in p2["items"]}
+    seen3 = {e["ref_id"] for e in p3["items"]}
+    assert not (seen1 & seen2) and not (seen2 & seen3) and not (seen1 & seen3)
+    # 5 条事件全部覆盖且第三页到底
+    assert p2["has_more"] is True
+    assert p3["has_more"] is False and p3["next_before_at"] is None
+    assert len(p1["items"]) + len(p2["items"]) + len(p3["items"]) == 5
+    # 排序稳定：每页内部按 occurred_at DESC
+    for page in (p1, p2):
+        times = [e["occurred_at"] for e in page["items"]]
+        assert times == sorted(times, reverse=True)
+
+    # 游标翻页不受新增事件影响：新增一条后，用旧游标取下一页仍是原集合
+    client.post("/api/dtm/decisions", json={"title": "游标测试 新增", "options": []})
+    p2b = fetch({**base, "before_at": p1["next_before_at"], "before_id": p1["next_before_id"]})
+    assert {e["ref_id"] for e in p2b["items"]} == seen2

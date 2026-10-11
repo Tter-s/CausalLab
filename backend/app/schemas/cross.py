@@ -33,6 +33,10 @@ class EventOut(ORMModel):
 class EventPage(BaseModel):
     items: list[EventOut]
     total: int
+    # 游标分页：以最后一行的 (occurred_at, id) 作为下一页起点；offset 模式下为 None
+    has_more: bool = False
+    next_before_at: str | None = None
+    next_before_id: int | None = None
 
 
 # ---------- 证据 ----------
