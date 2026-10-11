@@ -23,10 +23,6 @@ class ChangePasswordIn(BaseModel):
     new_password: str = Field(min_length=6, max_length=128)
 
 
-class ChangePasswordInWithSession(ChangePasswordIn):
-    pass
-
-
 def _client_ip(request: Request) -> str:
     fwd = request.headers.get("x-forwarded-for")
     return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "?")

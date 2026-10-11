@@ -124,6 +124,8 @@ export default function SettingsPage() {
 
   const logout = async () => {
     await post("/auth/logout").catch(() => undefined);
+    // 刻意整页跳转：登出必须清空全部客户端内存状态（软导航会保留路由缓存）
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = "/login";
   };
 
@@ -384,7 +386,9 @@ export default function SettingsPage() {
         onConfirm={async () => {
           await del("/data/all");
           toast.success(t("已清空全部业务数据"));
-          window.location.reload();
+          // 刻意整页刷新：清空所有客户端内存状态，避免各页缓存旧数据
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+          window.location.href = "/";
         }}
       />
       <ConfirmDialog
@@ -396,6 +400,8 @@ export default function SettingsPage() {
         onConfirm={async () => {
           await post("/data/demo");
           toast.success(t("演示数据已载入"));
+          // 刻意整页跳转：载入演示数据后从干净状态重建所有页面
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.href = "/";
         }}
       />

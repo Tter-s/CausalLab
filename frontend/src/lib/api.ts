@@ -68,6 +68,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       !window.location.pathname.startsWith("/login") &&
       !path.startsWith("/auth/")
     ) {
+      // 刻意整页跳转：清空全部客户端缓存状态，登录后从干净状态重建
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/login";
       throw new ApiError(401, { message: "需要登录" });
     }

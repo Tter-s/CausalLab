@@ -212,7 +212,6 @@ def submit_review(payload: ReviewIn, db: Session = Depends(get_db)):
         db.add(state_row)
         db.flush()
 
-    old_due = state_row.due_at
     new_state = scheduling.review(state_row.fsrs_card, payload.rating, now, payload.duration_ms)
 
     summary = scheduling.summary_from(new_state, now)
@@ -235,8 +234,6 @@ def submit_review(payload: ReviewIn, db: Session = Depends(get_db)):
 
     scheduled_days = None
     elapsed_days = None
-    if old_due:
-        pass
     due = summary["due_at"]
     if due:
         scheduled_days = round((due - now).total_seconds() / 86400, 4)

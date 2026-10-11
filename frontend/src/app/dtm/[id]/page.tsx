@@ -16,7 +16,7 @@ import { patch, post } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useAICall } from "@/lib/ai-client";
 import { useT } from "@/lib/i18n";
-import { fmtDateTime, fromLocalInput } from "@/lib/format";
+import { fmtDateTime } from "@/lib/format";
 import type { DecisionDetail, Prediction } from "@/lib/types";
 
 function DecisionDetailPageInner() {

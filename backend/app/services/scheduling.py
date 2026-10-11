@@ -85,16 +85,6 @@ def relearning_steps_minutes() -> list[float]:
     return [round(s.total_seconds() / 60, 2) for s in _scheduler.relearning_steps]
 
 
-def next_interval_days(state: dict) -> float:
-    """下次复习距现在的天数（用于前端按钮文案）。"""
-    due = state.get("due")
-    if isinstance(due, str):
-        due_dt = datetime.fromisoformat(due)
-        delta = due_dt - datetime.now(UTC)
-        return max(0.0, delta.total_seconds() / 86400)
-    return 0.0
-
-
 def preview_intervals(state: dict | None, now: datetime) -> dict[int, str]:
     """预览四种评分后的间隔文案（不真正写入）。"""
     card = load_card(state)
@@ -132,18 +122,12 @@ def default_desired_retention() -> float:
     return _scheduler.desired_retention
 
 
-def days_between(a: datetime, b: datetime) -> float:
-    return (_aware(a) - _aware(b)).total_seconds() / 86400
-
-
 __all__ = [
     "RATING_MAP",
-    "days_between",
     "default_desired_retention",
     "format_interval",
     "load_card",
     "new_card_dict",
-    "next_interval_days",
     "preview_intervals",
     "review",
     "retrievability_now",

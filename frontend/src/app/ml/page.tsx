@@ -8,22 +8,19 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { BrainCircuit, Eye, EyeOff, FlaskConical, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { BrainCircuit, Eye, FlaskConical, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { PageHeader, EmptyState, LoadingBlock, ErrorState, AIBanner } from "@/components/layout/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { del, get, getWith, patch, post } from "@/lib/api";
+import { del, get, post } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useT } from "@/lib/i18n";
 import { fmtDate, fmtPercent } from "@/lib/format";

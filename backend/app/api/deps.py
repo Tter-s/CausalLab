@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db as _get_db
@@ -45,9 +45,4 @@ def ai_error_to_http(exc: AIError) -> HTTPException:
     return HTTPException(status_code=500, detail={"code": "ai_error", "message": exc.user_message})
 
 
-def handle_ai_errors(request: Request):
-    """FastAPI 依赖：用 exception_handler 在 app 层统一注册（见 main.py）。"""
-    return request
-
-
-__all__ = ["get_db", "ai_error_to_http", "Depends", "handle_ai_errors"]
+__all__ = ["get_db", "ai_error_to_http"]

@@ -31,7 +31,6 @@ export function useAICall() {
   const t = useT();
   const [pending, setPending] = React.useState(false);
   const [preview, setPreview] = React.useState<{ provider: string; model_id: string; payload: string; resolve: (v: boolean) => void } | null>(null);
-  const [lastOptions, setLastOptions] = React.useState<AICallOptions | null>(null);
 
   const execute = React.useCallback(async (opts: AICallOptions, confirmSend: boolean): Promise<boolean> => {
     setPending(true);
@@ -59,15 +58,10 @@ export function useAICall() {
 
   const call = React.useCallback(
     (opts: AICallOptions) => {
-      setLastOptions(opts);
       return execute(opts, false);
     },
     [execute],
   );
-
-  const retry = React.useCallback(() => {
-    if (lastOptions) void execute(lastOptions, false);
-  }, [lastOptions, execute]);
 
   const dialog = preview ? (
     <Dialog open onOpenChange={() => preview.resolve(false)}>
@@ -94,5 +88,5 @@ export function useAICall() {
     </Dialog>
   ) : null;
 
-  return { call, retry, pending, dialog };
+  return { call, pending, dialog };
 }

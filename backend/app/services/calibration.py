@@ -50,20 +50,6 @@ def mean_std(values: list[float]) -> tuple[float | None, float | None]:
     return mean, math.sqrt(var)
 
 
-def pearson(xs: list[float], ys: list[float]) -> float | None:
-    """皮尔逊相关系数。任务书要求不得把相关当因果——前端/接口都注明这一点。"""
-    n = len(xs)
-    if n < 3 or n != len(ys):
-        return None
-    mx, my = sum(xs) / n, sum(ys) / n
-    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True))
-    sx = math.sqrt(sum((x - mx) ** 2 for x in xs))
-    sy = math.sqrt(sum((y - my) ** 2 for y in ys))
-    if sx == 0 or sy == 0:
-        return None
-    return round(cov / (sx * sy), 3)
-
-
 HYP_LIMITATIONS = [
     "这是对你个人记录的描述性统计，不是随机对照实验。",
     "相关不等于因果：即使观察到关联，也可能由共同原因（如精力、任务难度）造成。",

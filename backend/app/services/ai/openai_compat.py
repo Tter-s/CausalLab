@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 
 import httpx
@@ -104,28 +103,3 @@ class OpenAICompatProvider(AIProvider):
                     continue
                 raise AIUpstreamError(last_error) from exc
         raise AIUpstreamError(last_error or "未知错误")
-
-    @staticmethod
-    def extract_json(text: str) -> str:
-        """剥离模型输出中常见的 ```json 围栏，返回纯 JSON 字符串。"""
-        t = text.strip()
-        if t.startswith("```"):
-            t = t.strip("`")
-            if t.lower().startswith("json"):
-                t = t[4:]
-        start = t.find("{")
-        end = t.rfind("}")
-        if start >= 0 and end > start:
-            t = t[start : end + 1]
-        return t
-
-    @staticmethod
-    def parse_json_obj(text: str) -> dict:
-        raw = OpenAICompatProvider.extract_json(text)
-        try:
-            obj = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise AIUpstreamError(f"输出不是合法 JSON: {exc}") from exc
-        if not isinstance(obj, dict):
-            raise AIUpstreamError("输出不是 JSON 对象")
-        return obj

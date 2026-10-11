@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowLeft, CircleCheck, Clock, Plus, Sparkles, Zap } from "lucide-react";
+import { ArrowLeft, Clock, Plus, Sparkles, Zap } from "lucide-react";
 import { LoadingBlock, ErrorState, AIBanner } from "@/components/layout/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

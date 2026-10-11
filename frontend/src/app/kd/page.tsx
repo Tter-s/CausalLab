@@ -23,7 +23,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { del, get, getWith, patch, post } from "@/lib/api";
+import { del, getWith, patch, post } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useAICall } from "@/lib/ai-client";
 import { useL, useT } from "@/lib/i18n";
@@ -38,7 +38,6 @@ interface GraphOut {
 
 export default function KDPage() {
   const t = useT();
-  const L = useL();
   const graph = useApi<GraphOut>("/kd/graph");
   const tasks = useApi<StudyTask[]>("/kd/tasks");
   const [selectedTopicId, setSelectedTopicId] = React.useState<number | null>(null);
@@ -189,19 +188,6 @@ export default function KDPage() {
     void tasks.refresh();
   };
 
-  const spawnExperiment = async () => {
-    if (!diag) return;
-    try {
-      const r = await post<{ experiment_id: number }>(
-        `/ai/kd/diagnoses/${diag.id}/spawn-experiment?question=${encodeURIComponent(
-          "间隔复习能否改善「" + (L.kdDiagCategory[diag.category] ?? diag.category) + "」？",
-        )}&strategy_a=${encodeURIComponent("按间隔计划复习")}&strategy_b=${encodeURIComponent("考前集中复习")}`,
-      );
-      toast.success(`已在记忆实验室创建实验 #${r.experiment_id}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "创建实验失败");
-    }
-  };
 
 
   if (graph.loading && !graph.data) return <LoadingBlock rows={5} />;
@@ -375,18 +361,10 @@ export default function KDPage() {
         </TabsContent>
       </Tabs>
       {ai.dialog}
-      <SuggestionCreateBridge onRef={(fn) => { showSuggestionDialogRef = fn; }} />
     </div>
   );
 }
 
-let showSuggestionDialogRef: ((b: { suggestions: string[]; verification_tasks: string[] }) => Promise<void>) | null = null;
-function SuggestionCreateBridge({ onRef }: { onRef: (fn: (b: { suggestions: string[]; verification_tasks: string[] }) => Promise<void>) => void }) {
-  React.useEffect(() => {
-    onRef(async () => {});
-  }, [onRef]);
-  return null;
-}
 
 function TopicGraph({
   nodes,

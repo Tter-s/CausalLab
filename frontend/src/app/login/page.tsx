@@ -4,7 +4,6 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Lock } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
-import { post } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
