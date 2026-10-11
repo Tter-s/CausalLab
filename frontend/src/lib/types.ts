@@ -175,6 +175,8 @@ export interface ExperimentResults {
     n_reviews: number;
     again_rate: number | null;
     mean_duration_ms: number | null;
+    median_recall_ms: number | null;
+    recall_samples: number;
     delayed_test_pass_rate: number | null;
   }[];
   difference_note: string | null;

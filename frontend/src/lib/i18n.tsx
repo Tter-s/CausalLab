@@ -196,6 +196,7 @@ const DOMAIN_ZH: DomainDict = {
     requirement_change: "需求变化",
     note: "备注",
     status_change: "状态变更",
+    dependency_cleared: "依赖解除",
   },
   loopStage: {
     observe: "发现问题",
@@ -266,6 +267,7 @@ const DOMAIN_EN: DomainDict = {
     requirement_change: "Requirement change",
     note: "Note",
     status_change: "Status change",
+    dependency_cleared: "Dependency cleared",
   },
   loopStage: {
     observe: "Spot the problem",

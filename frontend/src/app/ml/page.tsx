@@ -210,10 +210,13 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
   const cards = due.data?.cards ?? [];
   const card = cards[index];
 
+  const revealedAtRef = React.useRef<number | null>(null); // 首次揭晓时刻 → 纯回忆用时
+
   React.useEffect(() => {
     setRevealed(false);
     setIntervals(null);
     setShownAt(Date.now());
+    revealedAtRef.current = null;
   }, [index, card?.id]);
 
   if (due.loading && !due.data) return <LoadingBlock rows={2} />;
@@ -235,6 +238,7 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
         card_id: card.id,
         rating,
         duration_ms: Date.now() - shownAt,
+        recall_ms: revealedAtRef.current !== null ? Math.max(0, revealedAtRef.current - shownAt) : null,
       });
       if (r.state.state_str === "review" && card.state?.state_str !== "review") {
         toast.success(t("毕业！进入复习循环，下次 {x} 后复习", { x: r.interval_display }));
@@ -275,7 +279,7 @@ function ReviewSession({ due, onReviewed }: { due: { data: DueQueue | null; load
             <p className="mt-6 text-sm text-muted-foreground">{t("先在心里回忆答案，再点击显示")}</p>
           )}
           {!revealed ? (
-            <Button className="mt-8" size="lg" onClick={() => { setRevealed(true); void getIntervals(card.id).then(setIntervals); }}>
+            <Button className="mt-8" size="lg" onClick={() => { if (revealedAtRef.current === null) revealedAtRef.current = Date.now(); setRevealed(true); void getIntervals(card.id).then(setIntervals); }}>
               <Eye /> {t("显示答案")}
             </Button>
           ) : (
@@ -503,7 +507,12 @@ function ExperimentsPanel({
                           <li>{t("卡片数：")}{g.n_cards}</li>
                           <li>{t("复习次数：")}{g.n_reviews}</li>
                           <li>{t("遗忘率：")}{g.again_rate === null ? t("暂无数据") : fmtPercent(g.again_rate, 1)}</li>
-                          <li>{t("平均回忆用时：")}{g.mean_duration_ms === null ? "—" : `${(g.mean_duration_ms / 1000).toFixed(1)}s`}</li>
+                          <li>
+                            {t("回忆用时中位数：")}
+                            {g.median_recall_ms === null
+                              ? "—"
+                              : `${(g.median_recall_ms / 1000).toFixed(1)}s（n=${g.recall_samples}）`}
+                          </li>
                         </ul>
                       </div>
                     ))}

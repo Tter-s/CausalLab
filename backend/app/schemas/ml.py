@@ -67,6 +67,8 @@ class ReviewIn(BaseModel):
     card_id: int
     rating: MLRating
     duration_ms: int = Field(default=0, ge=0)
+    # 纯回忆用时（题目显示→首次揭晓）；无则实验指标回退 duration_ms
+    recall_ms: int | None = Field(default=None, ge=0)
 
 
 class ReviewResultOut(BaseModel):
@@ -83,6 +85,7 @@ class ReviewLogOut(ORMModel):
     rating: int
     reviewed_at: UTCDateTime
     duration_ms: int
+    recall_ms: int | None = None
     scheduled_days: float | None
     elapsed_days: float | None
     experiment_id: int | None
@@ -165,6 +168,9 @@ class GroupResult(BaseModel):
     n_reviews: int
     again_rate: float | None
     mean_duration_ms: float | None
+    # 纯回忆用时中位数（显示→揭晓，剔除 200ms 以下与 5 分钟以上的异常值）
+    median_recall_ms: float | None = None
+    recall_samples: int = 0
     delayed_test_pass_rate: float | None
 
 

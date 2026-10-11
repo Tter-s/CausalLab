@@ -51,6 +51,7 @@ TATaskEventType = Literal[
     "requirement_change",
     "note",
     "status_change",
+    "dependency_cleared",
 ]
 ImprovementStatus = Literal["proposed", "trying", "adopted", "discarded"]
 

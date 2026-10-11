@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import random
+import statistics
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -256,6 +257,7 @@ def submit_review(payload: ReviewIn, db: Session = Depends(get_db)):
         rating=payload.rating,
         reviewed_at=now,
         duration_ms=payload.duration_ms,
+        recall_ms=payload.recall_ms,
         scheduled_days=scheduled_days,
         elapsed_days=elapsed_days,
         experiment_id=experiment_id,
@@ -487,10 +489,18 @@ def experiment_results(experiment_id: int, db: Session = Depends(get_db)):
         )
         again_rate = round(sum(1 for r in logs if r.rating == 1) / len(logs), 3) if logs else None
         mean_ms = round(sum(r.duration_ms for r in logs) / len(logs), 1) if logs else None
+        # 纯回忆用时中位数：优先 recall_ms（显示→揭晓）；剔除 <200ms（误触）与 >5min（走神）的异常值
+        recall_values = [
+            r.recall_ms if r.recall_ms is not None else r.duration_ms for r in logs
+        ]
+        valid = [v for v in recall_values if 200 <= v <= 300_000]
+        median_recall = round(statistics.median(valid), 1) if valid else None
         results.append(
             GroupResult(
                 name=g.name, strategy=g.strategy, n_cards=n_cards, n_reviews=len(logs),
-                again_rate=again_rate, mean_duration_ms=mean_ms, delayed_test_pass_rate=None,
+                again_rate=again_rate, mean_duration_ms=mean_ms,
+                median_recall_ms=median_recall, recall_samples=len(valid),
+                delayed_test_pass_rate=None,
             )
         )
     diff_note = None
@@ -498,6 +508,13 @@ def experiment_results(experiment_id: int, db: Session = Depends(get_db)):
     if len(rates) == 2 and all(r.n_reviews >= 5 for r in results):
         diff = round(rates[0] - rates[1], 3)
         diff_note = f"A 组遗忘率比 B 组高 {diff:+.0%}（负值表示 A 更好）。样本小，仅供参考。"
+    medians = [r.median_recall_ms for r in results]
+    if diff_note is None and len(medians) == 2 and all(m is not None for m in medians) and all(r.recall_samples >= 3 for r in results):
+        diff_ms = medians[0] - medians[1]
+        diff_note = (
+            f"A 组回忆用时中位数 {medians[0] / 1000:.1f}s vs B 组 {medians[1] / 1000:.1f}s"
+            f"（差值 {diff_ms / 1000:+.1f}s，正值表示 A 更慢）。样本小，仅供参考。"
+        )
     return ExperimentResultsOut(
         experiment_id=experiment_id,
         groups=results,

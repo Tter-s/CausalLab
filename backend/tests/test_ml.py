@@ -121,3 +121,34 @@ def test_learning_step_breakdown(client):
     # 到期队列：学习步骤未到期的卡片不应出现（1 分钟后才会到期）
     due = client.get("/api/ml/due").json()
     assert all(c["id"] != c_good["id"] for c in due["cards"])
+
+
+def test_recall_ms_and_median(client):
+    """recall_ms 存储 + 实验结果用“纯回忆用时中位数”，异常值（>5min）被剔除。"""
+    deck = client.post("/api/ml/decks", json={"name": "回忆用时卡组"}).json()
+    c0 = client.post("/api/ml/cards", json={"deck_id": deck["id"], "front": "卡0", "back": "B"}).json()
+    c1 = client.post("/api/ml/cards", json={"deck_id": deck["id"], "front": "卡1", "back": "B"}).json()
+    exp = client.post("/api/ml/experiments", json={
+        "question": "回忆用时对比", "strategy_a": "A 策略", "strategy_b": "B 策略", "metric": "recall_speed",
+    }).json()
+    client.post(f"/api/ml/experiments/{exp['id']}/assign", json={"card_ids": [c0["id"], c1["id"]]})
+
+    # 各组 1 张卡（随机分组）；c0 正常回忆用时 1200ms，c1 为 15 分钟（>5min 异常值）
+    client.post("/api/ml/reviews", json={"card_id": c0["id"], "rating": 3, "duration_ms": 30_000, "recall_ms": 1200})
+    client.post("/api/ml/reviews", json={"card_id": c1["id"], "rating": 3, "duration_ms": 900_000, "recall_ms": 900_000})
+
+    logs0 = client.get(f"/api/ml/cards/{c0['id']}/logs").json()
+    assert logs0[0]["recall_ms"] == 1200
+    group0 = logs0[0]["group_tag"]
+
+    results = client.get(f"/api/ml/experiments/{exp['id']}/results").json()
+    g0 = next(g for g in results["groups"] if g["name"] == group0)
+    other = next(g for g in results["groups"] if g["name"] != group0)
+    assert g0["median_recall_ms"] == 1200.0 and g0["recall_samples"] == 1
+    assert other["median_recall_ms"] is None and other["recall_samples"] == 0  # 全部被异常值过滤
+    # 普通复习不带 recall_ms → 落库为 None
+    c2 = client.post("/api/ml/cards", json={"deck_id": deck["id"], "front": "卡2", "back": "B"}).json()
+    r2 = client.post("/api/ml/reviews", json={"card_id": c2["id"], "rating": 3, "duration_ms": 4000}).json()
+    assert r2["state"]["reps"] == 1
+    logs2 = client.get(f"/api/ml/cards/{c2['id']}/logs").json()
+    assert logs2[0]["recall_ms"] is None

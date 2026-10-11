@@ -66,7 +66,7 @@
 | PATCH/DELETE | `/ml/cards/{id}` | 更新（可 suspend）/删除 |
 | GET | `/ml/due?limit=&deck_id=` | 到期队列（含 FSRS 状态与可提取性） |
 | GET | `/ml/cards/{id}/preview` | 四种评分的间隔预览（复习按钮文案） |
-| POST | `/ml/reviews` | **提交复习** `{card_id, rating(1-4), duration_ms}` → 新状态 + 间隔文案；若卡片在实验组自动记录 group_tag |
+| POST | `/ml/reviews` | **提交复习** `{card_id, rating(1-4), duration_ms, recall_ms?}`（recall_ms = 题目显示→首次揭晓的纯回忆用时，供实验指标）→ 新状态 + 间隔文案；若卡片在实验组自动记录 group_tag |
 | GET | `/ml/cards/{id}/logs` | 复习日志 |
 | GET | `/ml/stats` | 统计：每日复习数、间隔分布、成熟度、7 天回忆率/遗忘率 |
 | GET | `/ml/forgetting-curve?days=` | 未来 N 天到期数（复习负担预测） |
@@ -100,7 +100,8 @@
 | GET/POST | `/ta/projects` | 项目 |
 | GET/POST | `/ta/projects/{id}/tasks` | 任务（支持 parent_id 子任务、depends_on 依赖） |
 | PATCH | `/ta/tasks/{id}` | 状态流转（done 自动算 actual_hours；blocked/resumed 事件联动） |
-| POST | `/ta/tasks/{id}/events` | **过程事件**：blocked/resumed/rework/interrupted/requirement_change/note（含时长） |
+| POST | `/ta/tasks/{id}/events` | **过程事件**：blocked/resumed/rework/interrupted/requirement_change/note/dependency_cleared（含时长） |
+| — | 依赖传播（自动） | 任务标记 done 时：下游任务自动记录 `dependency_cleared` 事件；若其全部前置已完成且处于 blocked，则自动恢复 doing（同样留事件）。创建依赖时做循环依赖检测（422） |
 | GET | `/ta/projects/{id}/stats` | 统计：预估 vs 实际、平均超支比、阻塞分钟、返工/中断/需求变化计数、逐任务明细 |
 | POST | `/ta/projects/{id}/rule-review` | **规则复盘**（无需 AI）：严格分区 事实/推测/缺失证据/改进建议 |
 | GET/POST | `/ta/projects/{id}/reviews` | 复盘报告列表/手动报告 |

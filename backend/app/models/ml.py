@@ -56,7 +56,9 @@ class ReviewLog(Base, TimestampMixin):
     card_id: Mapped[int] = mapped_column(ForeignKey("ml_cards.id", ondelete="CASCADE"), index=True)
     rating: Mapped[int] = mapped_column(Integer)  # 1 again | 2 hard | 3 good | 4 easy
     reviewed_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
-    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)  # 显示→评分总用时（FSRS 用）
+    # 纯回忆用时：题目显示→首次揭晓答案（不含看答案与评分时间），实验 recall_speed 指标用
+    recall_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     scheduled_days: Mapped[float | None] = mapped_column(Float, nullable=True)
     elapsed_days: Mapped[float | None] = mapped_column(Float, nullable=True)
     experiment_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)

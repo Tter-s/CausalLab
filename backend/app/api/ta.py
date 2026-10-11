@@ -57,6 +57,60 @@ def _get_task(db: Session, task_id: int) -> Task:
     return t
 
 
+def _creates_cycle(db: Session, task_id: int, depends_on_id: int) -> bool:
+    """判断“task_id 依赖 depends_on_id”是否会构成环：
+    沿 depends_on 边向上游走，若能回到 task_id 则成环。"""
+    seen: set[int] = set()
+    stack = [depends_on_id]
+    while stack:
+        cur = stack.pop()
+        if cur == task_id:
+            return True
+        if cur in seen:
+            continue
+        seen.add(cur)
+        stack.extend(
+            r.depends_on_task_id
+            for r in db.scalars(select(TaskDep).where(TaskDep.task_id == cur))
+        )
+    return False
+
+
+def _propagate_dependency_cleared(db: Session, task: Task) -> None:
+    """任务完成后的依赖传播：为每个直接下游任务记录“依赖解除”事件；
+    若下游任务的全部前置均已完成且处于 blocked，则自动恢复为 doing。"""
+    downstream = list(db.scalars(select(TaskDep).where(TaskDep.depends_on_task_id == task.id)))
+    if not downstream:
+        return
+    cleared = 0
+    resumed = 0
+    for dep in downstream:
+        d = db.get(Task, dep.task_id)
+        if d is None or d.status in ("done", "cancelled"):
+            continue
+        now = utcnow()
+        db.add(TaskEvent(task_id=d.id, type="dependency_cleared",
+                         description=f"前置任务「{task.title}」已完成，依赖解除", occurred_at=now))
+        cleared += 1
+        upstream_ids = [r.depends_on_task_id for r in db.scalars(select(TaskDep).where(TaskDep.task_id == d.id))]
+        all_done = all(
+            (u := db.get(Task, uid)) is not None and u.status == "done" for uid in upstream_ids
+        )
+        if all_done and d.status == "blocked":
+            d.status = "doing"
+            db.add(TaskEvent(task_id=d.id, type="status_change",
+                             description="依赖全部完成，自动恢复执行（blocked → doing）", occurred_at=now))
+            record_event(db, module="ta", event_type="task.auto_resumed", ref_type="task", ref_id=d.id,
+                         title=f"任务「{d.title}」依赖全部完成，自动恢复执行", importance=2)
+            resumed += 1
+        record_event(db, module="ta", event_type="task.dependency_cleared", ref_type="task", ref_id=d.id,
+                     title=f"前置任务「{task.title}」完成，任务「{d.title}」依赖解除", importance=1)
+    if cleared:
+        record_event(db, module="ta", event_type="task.completed", ref_type="task", ref_id=task.id,
+                     title=f"任务「{task.title}」完成：解除 {cleared} 个下游依赖（自动恢复 {resumed} 个）",
+                     importance=1, detail={"cleared": cleared, "auto_resumed": resumed})
+
+
 # ---------- 项目 ----------
 @router.get("/projects", response_model=list[ProjectOut])
 def list_projects(status: str | None = None, db: Session = Depends(get_db)):
@@ -133,6 +187,8 @@ def create_task(project_id: int, payload: TaskIn, db: Session = Depends(get_db))
     for dep_id in payload.depends_on:
         if dep_id == t.id:
             raise HTTPException(status_code=422, detail="任务不能依赖自己")
+        if _creates_cycle(db, t.id, dep_id):
+            raise HTTPException(status_code=422, detail="该依赖会形成循环依赖")
         db.add(TaskDep(task_id=t.id, depends_on_task_id=dep_id))
     record_event(db, module="ta", event_type="task.created", ref_type="task", ref_id=t.id,
                  title=f"新建任务：{t.title}", importance=1)
@@ -169,6 +225,7 @@ def update_task(task_id: int, payload: TaskUpdateIn, db: Session = Depends(get_d
             # 未手动填写实际耗时时，按开始→完成的时间差自动计算（小时，含阻塞等，供参考）
             if t.actual_hours is None and t.started_at:
                 t.actual_hours = round((now - t.started_at).total_seconds() / 3600, 2)
+            _propagate_dependency_cleared(db, t)
         elif new_status == "todo" and old_status == "done":
             t.finished_at = None
         db.add(
@@ -200,6 +257,8 @@ def add_dependency(task_id: int, payload: TaskDepIn, db: Session = Depends(get_d
     dep_target = _get_task(db, payload.depends_on_task_id)
     if dep_target.project_id != t.project_id:
         raise HTTPException(status_code=422, detail="依赖任务必须属于同一项目")
+    if _creates_cycle(db, task_id, payload.depends_on_task_id):
+        raise HTTPException(status_code=422, detail="该依赖会形成循环依赖")
     dep = TaskDep(task_id=task_id, depends_on_task_id=payload.depends_on_task_id)
     db.add(dep)
     db.commit()
