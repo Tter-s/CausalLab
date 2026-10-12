@@ -29,8 +29,8 @@ describe("i18n dictionaries", () => {
   });
 
   it("every base entry has non-empty values", () => {
-    for (const [k, v] of Object.entries(baseZh)) expect(v.length).toBeGreaterThan(0);
-    for (const [k, v] of Object.entries(baseEn)) expect(v.length).toBeGreaterThan(0);
+    for (const v of Object.values(baseZh)) expect(v.length).toBeGreaterThan(0);
+    for (const v of Object.values(baseEn)) expect(v.length).toBeGreaterThan(0);
   });
 
   it("every Chinese-source t() key used in src is translated in enPageStrings", () => {

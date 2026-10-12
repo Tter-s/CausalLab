@@ -7,6 +7,11 @@ import sys
 
 import httpx
 
+# Windows 默认控制台编码可能是 GBK，而本脚本输出含 ✓/✗ 与中文，
+# 不切换会在打印 ✓ 时抛 UnicodeEncodeError（脚本自身崩溃，与业务无关）。
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 BASE = "http://127.0.0.1:8000/api"
 c = httpx.Client(base_url=BASE, timeout=30)
 ok_count = 0
