@@ -72,7 +72,7 @@ run_structured():  统一管道 = 隐私确认(428) → 预算检查(402) → �
 
 ## 4. 前端架构
 
-- **App Router + 全 client 页面**：11 个路由；数据获取用自研 SWR 风格 `useApi` hook（不引入 React Query，保持轻量）；
+- **App Router + 全 client 页面**：12 个路由（含 `/login` 认证页）；数据获取用自研 SWR 风格 `useApi` hook（不引入 React Query，保持轻量）；
 - **API 客户端**（lib/api.ts）：统一错误结构；428 响应转成 `AIConfirmRequiredError`，`useAICall` hook 自动处理「预览 → 确认 → 重发」流程；
 - **UI 组件库**：shadcn 风格手写（Tailwind v4 + Radix primitives + CVA），主题 token 用 OKLCH CSS 变量，深/浅色由 next-themes 驱动；
 - **视觉规范**：侧边栏布局、卡片化信息结构、空态/加载骨架/错误态全覆盖、重要操作二次确认、sonner 全局 toast；

@@ -66,7 +66,7 @@ npm run dev
 ### 运行测试
 
 ```bash
-# 后端（49 个用例：规则诊断护栏、快照不可覆盖、FSRS 调度、AI 闸门/预算/回退、导入导出等）
+# 后端（61 个用例：规则诊断护栏、快照不可覆盖、FSRS 调度、AI 闸门/预算/回退、导入导出等）
 cd backend && uv run pytest -q
 
 # 前端单测（Vitest）
@@ -123,7 +123,7 @@ docker compose up --build
 | GitHub Actions CI 真跑 | ⚠️ 未在本机验证（`act` 需要 Docker）；workflow 按官方 Action 语法编写 |
 | Playwright Chromium（CI） | ⚠️ 本机使用系统 Edge（channel: `msedge`）验证通过；CI 的 Chromium 路径未实跑 |
 
-已在本机充分验证：pytest 49 用例、Vitest 13 用例、`next build`、uvicorn 冒烟、Playwright E2E（Edge，7 个场景）、Alembic 迁移（SQLite）、ruff、mypy。
+已在本机充分验证：pytest 61 用例、Vitest 19 用例、`next build`、uvicorn 冒烟、Playwright E2E（Edge，8 个场景）、Alembic 迁移（SQLite）、ruff、mypy。
 
 ## 项目结构
 
@@ -139,12 +139,12 @@ CausalLab/
 │   │   ├── config.py       # 环境变量配置（CAUSALAB_* 前缀）
 │   │   └── main.py         # 应用工厂（启动时自动迁移）
 │   ├── alembic/            # 迁移
-│   └── tests/              # pytest（49 用例）
+│   └── tests/              # pytest（61 用例）
 ├── frontend/               # Next.js 16 + React 19 + Tailwind v4 + Radix + Recharts + React Flow
-│   ├── src/app/            # 11 个路由（概览/四模块/时间线/假设/循环/设置 + 2 个详情页）
+│   ├── src/app/            # 12 个路由（概览/四模块/时间线/假设/循环/设置/登录 + 2 个详情页）
 │   ├── src/components/     # shadcn 风格 UI 组件库 + 布局壳
 │   ├── src/lib/            # API 客户端（含 428 确认闸门）、hooks、i18n（zh 完整/en 预留）
-│   ├── e2e/                # Playwright（Edge）7 个核心场景
+│   ├── e2e/                # Playwright（Edge）8 个核心场景
 │   └── tests/              # Vitest 单测
 ├── docker-compose.yml      # 未在本机验证
 └── .github/workflows/ci.yml

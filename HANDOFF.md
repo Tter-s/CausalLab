@@ -18,7 +18,7 @@
 |---|---|
 | 后端 | Python 3.14（锁死，见 §5）+ FastAPI + SQLAlchemy 2.1 + Alembic + SQLite（可切 PG）+ py-fsrs v6（官方库，MIT）+ bcrypt + cryptography(Fernet) |
 | 前端 | Next.js 16（App Router，纯客户端取数）+ React 19 + Tailwind v4 + Radix（shadcn 风格手写组件）+ Recharts + @xyflow/react + next-themes + sonner |
-| 测试 | pytest（后端 60 用例）/ Vitest（前端 19）/ Playwright（E2E 8，复用系统 Edge） |
+| 测试 | pytest（后端 61 用例）/ Vitest（前端 19）/ Playwright（E2E 8，复用系统 Edge） |
 | 取数模式 | 前端统一相对路径 `/api/*`，由 Next rewrites 代理到 FastAPI `127.0.0.1:8000`（免 CORS） |
 
 ## 3. 目录速览
@@ -30,13 +30,13 @@ CausalLab/
 ├── docs/  ARCHITECTURE.md / API.md（设计决策 + 接口）
 ├── backend/
 │   ├── app/api/        # kd / ml / dtm / ta / cross(时间线等) / ai / auth / settings / data
-│   ├── app/models/     # 37 张表（base=Base+utcnow；auth=会话表）
+│   ├── app/models/     # 36 张表（base=Base+utcnow；auth=会话表）
 │   ├── app/services/   # events/links(事件证据链接)、scheduling(FSRS 适配)、
 │   │   │               # kd_rules(规则诊断)、calibration、demo、crypto(Fernet)、auth(认证)
 │   │   └── ai/         # Provider 抽象：none/mock/openai_compat + config(隐私闸门/预算/结构化校验)
 │   ├── alembic/        # 4 个迁移（初始 schema / auth_sessions / events 索引 / recall_ms）
 │   ├── scripts/smoke_no_ai.py   # 无 AI 全链路冒烟（24 项，对运行中的 8000 端口执行）
-│   └── tests/          # 60 用例
+│   └── tests/          # 61 用例
 └── frontend/
     ├── src/app/        # 12 路由：/ /kd /ml /dtm /dtm/[id] /ta /ta/[id] /timeline
     │                   #        /hypotheses /loops /settings /login
@@ -62,8 +62,8 @@ cd frontend && npx playwright test        # E2E，自动拉起隔离前后端（
 cd backend  && uv run python scripts/smoke_no_ai.py   # 无 AI 冒烟（需 8000 在运行）
 ```
 
-当前基线：**pytest 60/60 · Vitest 19/19 · E2E 8/8 · 冒烟 24/24 · AI 测试连接 ✅ · ruff/mypy/eslint 全绿 · build 12 业务路由成功**。
-服务当前在 8000/3000 运行中；重启可用 bat 或先 `npx kill-port 8000 3000`。
+当前基线：**pytest 61/61 · Vitest 19/19 · E2E 8/8 · 冒烟 24/24 · AI 测试连接 ✅ · ruff/mypy/eslint 全绿 · build 12 业务路由成功**。
+服务默认未启动（启动方式见上）；如需重启，可先 `npx kill-port 8000 3000` 清理端口。
 注意：E2E 需先关 :3000 dev server（Next 16 同项目不允许第二个 dev server）；
 冒烟脚本若在已配置真实 AI 时运行，第 0/1 组各 1 项按"无 AI 前提"断言会报失败，属预期。
 
