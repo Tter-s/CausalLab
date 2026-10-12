@@ -260,7 +260,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           <React.Suspense fallback={<div className="h-96" />}>
             <SidebarNav onNavigate={() => setMobileOpen(false)} />
           </React.Suspense>
-          <div className="mt-auto px-5 py-4 text-[11px] text-muted-foreground">
+          {/* dev 模式下 Next 调试按钮（.nextjs-toast 的「N」）固定在左下角，
+              会压住这段文案，故仅在 development 追加底部内边距把文案让开；
+              生产构建里界面与之前完全一致。 */}
+          <div className={`mt-auto px-5 py-4 text-[11px] text-muted-foreground ${process.env.NODE_ENV === "development" ? "pb-16" : ""}`}>
             {t("本地单用户模式 · 数据存储在本机")}
           </div>
         </aside>

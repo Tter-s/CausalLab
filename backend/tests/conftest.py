@@ -23,4 +23,10 @@ def client() -> TestClient:
 
 
 def pytest_sessionfinish(session, exitstatus):  # noqa: ANN001
+    # 必须先释放连接池：否则 Windows 上 SQLite 文件句柄未关闭，
+    # rmtree 会删不掉 causalab.db，而 ignore_errors=True 会把失败吞掉，
+    # 导致每次运行都在临时目录里漏下一个 causalab_test_* 目录。
+    from app.db import engine
+
+    engine.dispose()
     shutil.rmtree(_TEST_DATA_DIR, ignore_errors=True)
