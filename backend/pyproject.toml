@@ -13,8 +13,9 @@ dependencies = [
     "httpx>=0.28",
     "bcrypt>=5",
     "cryptography>=44",
-    "python-multipart>=0.0.17",
     "fsrs>=5.0",
+    # PostgreSQL 驱动：CAUSALAB_DB_URL=postgresql+psycopg://... 需要它（见 README 未验证清单）
+    "psycopg[binary]>=3.2",
 ]
 
 [dependency-groups]
