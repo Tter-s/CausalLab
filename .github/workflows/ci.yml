@@ -93,14 +93,15 @@ jobs:
 
       - name: 运行 E2E（CI 用 Chromium channel）
         working-directory: frontend
-        run: |
-          # 覆盖 channel 为 chromium（本机 Edge 不可用）
-          npx playwright test --project=chromium || \
-          npx cross-env-origin-guard=1 npx playwright test
+        run: npx playwright test
         env:
-          PLAYWRIGHT_CHROMIUM: 1
+          # playwright.config.ts 读取的是 PLAYWRIGHT_CHANNEL（默认 msedge，供本机使用）；
+          # CI 无 Edge，必须覆盖为 chromium（上一步已安装 Chromium）。
+          PLAYWRIGHT_CHANNEL: chromium
 
 # 说明：
 # - 本 workflow 在 GitHub Actions 上真实运行过一次都没有（本机无 Docker、无法执行 act），
 #   属于【未在本机验证】项。语法按官方 Action 与 Playwright 文档编写。
-# - E2E 通过 PLAYWRIGHT_CHANNEL=chromium 覆盖本机默认的 msedge channel。
+# - 注意：playwright.config.ts 的 projects 里只有一个名为 "edge" 的 project，
+#   channel 由环境变量 PLAYWRIGHT_CHANNEL 控制，因此**不能**写 `--project=chromium`
+#   （会报 Project(s) 'chromium' not found），也不存在 PLAYWRIGHT_CHROMIUM 这个变量名。
