@@ -94,6 +94,14 @@ export const patch = <T>(path: string, body: unknown) =>
   api<T>(path, { method: "PATCH", body: JSON.stringify(body) });
 export const del = <T>(path: string) => api<T>(path, { method: "DELETE" });
 
+/**
+ * multipart/form-data 上传（文件上传专用）。
+ * 刻意传空的 headers 覆盖掉 api() 默认的 Content-Type: application/json，
+ * 让浏览器自己带 multipart boundary，否则后端无法解析。
+ */
+export const postForm = <T>(path: string, form: FormData) =>
+  api<T>(path, { method: "POST", body: form, headers: {} });
+
 /** 带 query 参数的 GET */
 export function getWith<T>(path: string, params: Record<string, string | number | boolean | undefined | null>): Promise<T> {
   const qs = Object.entries(params)

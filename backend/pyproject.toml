@@ -8,12 +8,15 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "sqlalchemy>=2.1.4",
     "alembic>=1.14",
-    "pydantic>=2.9",
+    # 下限按任务书 11.8：cp314 的 wheel 只存在于较新版本，钉太低会回退源码编译
+    "pydantic>=2.14",
     "pydantic-settings>=2.6",
     "httpx>=0.28",
     "bcrypt>=5",
-    "cryptography>=44",
+    "cryptography>=50",
     "fsrs>=5.0",
+    # 题目/解答的文件上传需要它（FastAPI 的 File/Form 解析）
+    "python-multipart>=0.0.17",
     # PostgreSQL 驱动：CAUSALAB_DB_URL=postgresql+psycopg://... 需要它（见 README 未验证清单）
     "psycopg[binary]>=3.2",
 ]

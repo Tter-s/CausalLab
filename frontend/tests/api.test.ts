@@ -86,4 +86,21 @@ describe("api client", () => {
     expect(err.message).toBe("plain error");
     expect(new ApiError(500, { detail: {} }).message).toContain("500");
   });
+
+  it("postForm 发送 FormData 且不写 JSON Content-Type（浏览器需自行带 multipart boundary）", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 1 }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { postForm } = await import("@/lib/api");
+    const fd = new FormData();
+    fd.append("module", "kd");
+    await expect(postForm("/uploads", fd)).resolves.toMatchObject({ id: 1 });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/uploads");
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe(fd);
+    // 关键：不能带上 api() 默认的 application/json，否则后端无法解析 multipart
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
+    vi.unstubAllGlobals();
+  });
 });

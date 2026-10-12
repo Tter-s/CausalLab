@@ -21,6 +21,27 @@ import type { AIConfig, UsageSummary } from "@/lib/types";
 
 const PROVIDER_KEYS = ["none", "deepseek", "mimo", "moonshot", "openai-compat", "mock"] as const;
 
+/**
+ * 可按任务类型单独指定模型的任务清单（与后端 ai/config.py 的 task_type 取值一一对应）。
+ * 后端 get_provider(db, task_type) 会用这里的覆盖值；留空表示沿用全局默认模型。
+ */
+const AI_TASK_TYPES = [
+  { key: "kd_diagnosis", label: "知识诊断" },
+  { key: "kd_suggestion", label: "学习建议" },
+  { key: "ta_review", label: "项目复盘" },
+  { key: "dtm_review", label: "决策复盘" },
+  { key: "dtm_counterfactual", label: "反事实推演" },
+  { key: "hyp_design", label: "实验设计" },
+  { key: "loop_review", label: "循环复盘" },
+  { key: "general", label: "通用" },
+] as const;
+
+interface TaskModelRow {
+  task_type: string;
+  model_id: string;
+  temperature: string;
+}
+
 export default function SettingsPage() {
   const t = useT();
   const cfg = useApi<AIConfig>("/settings/ai");
@@ -38,6 +59,7 @@ export default function SettingsPage() {
     auto_confirm_send: false,
     price_prompt_per_m: "2",
     price_completion_per_m: "8",
+    task_models: AI_TASK_TYPES.map((tt) => ({ task_type: tt.key, model_id: "", temperature: "" })) as TaskModelRow[],
   });
   const [testing, setTesting] = React.useState(false);
   const [wipeOpen, setWipeOpen] = React.useState(false);
@@ -60,6 +82,15 @@ export default function SettingsPage() {
         auto_confirm_send: cfg.data.auto_confirm_send,
         price_prompt_per_m: String(cfg.data.price_prompt_per_m),
         price_completion_per_m: String(cfg.data.price_completion_per_m),
+        // 把已保存的覆盖合并进固定行，保证界面上始终能看到全部任务类型
+        task_models: AI_TASK_TYPES.map((tt) => {
+          const found = cfg.data!.task_models.find((m) => m.task_type === tt.key);
+          return {
+            task_type: tt.key,
+            model_id: found?.model_id ?? "",
+            temperature: found?.temperature != null ? String(found.temperature) : "",
+          };
+        }),
       });
     }
   }, [cfg.data]);
@@ -77,6 +108,14 @@ export default function SettingsPage() {
       auto_confirm_send: form.auto_confirm_send,
       price_prompt_per_m: Number(form.price_prompt_per_m) || 2,
       price_completion_per_m: Number(form.price_completion_per_m) || 8,
+      // 只提交填了模型名的行；留空的行等于「沿用默认模型」
+      task_models: form.task_models
+        .filter((m) => m.model_id.trim() !== "")
+        .map((m) => ({
+          task_type: m.task_type,
+          model_id: m.model_id.trim(),
+          temperature: m.temperature === "" ? null : Number(m.temperature),
+        })),
     });
     toast.success(t("AI 设置已保存"));
     void cfg.refresh();
@@ -246,6 +285,48 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 {t("参考价（DeepSeek 官方，2026-10 查询）：deepseek-flash 输入缓存未命中 ¥1/百万（高峰 ¥2），输出 ¥4/百万（高峰 ¥8）；缓存命中与空闲时段更便宜。费用估算按高峰价计，偏保守。")}
               </p>
+              {/* 按任务类型指定模型（可选）：具体任务可用更便宜的模型，复杂任务手动切换 */}
+              <div className="space-y-3 rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium">{t("按任务类型指定模型（可选）")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("简单任务可用更低成本的模型，复杂任务可手动切换；留空的任务类型沿用上面的默认模型。")}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {form.task_models.map((row, idx) => (
+                    <div key={row.task_type} className="grid grid-cols-12 items-center gap-2">
+                      <span className="col-span-3 truncate text-sm text-muted-foreground">
+                        {t(AI_TASK_TYPES[idx].label)}
+                      </span>
+                      <Input
+                        className="col-span-5"
+                        placeholder={t("模型 ID，如 deepseek-chat")}
+                        value={row.model_id}
+                        onChange={(e) => {
+                          const next = [...form.task_models];
+                          next[idx] = { ...row, model_id: e.target.value };
+                          setForm({ ...form, task_models: next });
+                        }}
+                      />
+                      <Input
+                        className="col-span-4"
+                        type="number"
+                        min={0}
+                        max={2}
+                        step={0.1}
+                        placeholder={t("Temperature（留空用默认）")}
+                        value={row.temperature}
+                        onChange={(e) => {
+                          const next = [...form.task_models];
+                          next[idx] = { ...row, temperature: e.target.value };
+                          setForm({ ...form, task_models: next });
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <p className="flex items-center gap-1.5 text-sm font-medium"><ShieldCheck className="h-4 w-4" /> {t("自动确认发送")}</p>

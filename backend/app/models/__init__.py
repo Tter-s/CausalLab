@@ -2,6 +2,7 @@ from app.models.ai import AIUsageLog, Setting
 from app.models.auth import AuthSession
 from app.models.base import Base
 from app.models.cross import (
+    Attachment,
     EntityLink,
     EventLog,
     EvidenceRecord,
@@ -30,6 +31,7 @@ __all__ = [
     "EventLog",
     "EvidenceRecord",
     "EntityLink",
+    "Attachment",
     "Hypothesis",
     "HypothesisObservation",
     "ImprovementLoop",

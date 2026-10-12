@@ -1,7 +1,10 @@
 /**
  * 页面文案的英文翻译（键 = 中文源文案）。
  * 由各页面以 t(源文键) 形式引用；zh 语言下 t() 直接回退到中文键本身。
- * 生成方式见 scripts/_i18n_strings_all.py（新增文案请在该脚本登记后重新生成）。
+ *
+ * 新增文案：直接在本文件补一条英文即可——tests/i18n.test.ts 会扫描 src 下所有
+ * t 调用中出现的中文键，缺翻译会直接判测试失败（刻意的防退化设计）。
+ * 注：早期文档提到的 scripts/_i18n_strings_all.py 生成脚本已不存在，请勿再引用。
  */
 export const enPageStrings: Record<string, string> = {
   "重试": "Retry",
@@ -563,4 +566,38 @@ export const enPageStrings: Record<string, string> = {
   "加载更多": "Load more",
   "已加载全部 {n} 条": "All {n} events loaded",
   "回忆用时中位数：": "Median recall time: ",
+  // ---- KD 题目 / 解答附件 ----
+  "记录题目与解答要点，登记每次答题情况；题目和解答文件可在下方上传附件": "Log the question and key points of your solution, and record each attempt; you can upload the question and solution files as attachments below",
+  "题目内容 / 你的解答（可直接粘贴文本）": "Question text / your solution (paste as text)",
+  "题目与解答附件": "Question & solution attachments",
+  "上传题目与你的解答文件（图片或 PDF，单文件不超过 10 MB）；与上方文本记录并存，互为补充。": "Upload the question and your solution as files (image or PDF, max 10 MB each). These complement — not replace — the text records above.",
+  "选择知识点后即可上传题目与解答附件。": "Pick a topic to start uploading question and solution attachments.",
+  "类型": "Type",
+  "题目": "Question",
+  "我的解答": "My solution",
+  "其他附件": "Other",
+  "选择文件": "Choose file",
+  "附件类型": "Attachment type",
+  "附件文件": "Attachment file",
+  "上传附件": "Upload",
+  "上传中…": "Uploading…",
+  "请先选择文件": "Pick a file first",
+  "附件已上传": "Attachment uploaded",
+  "上传失败": "Upload failed",
+  "附件已删除": "Attachment deleted",
+  "删除附件": "Delete attachment",
+  "打开": "Open",
+  "这个知识点还没有附件": "No attachments for this topic yet",
+  // ---- 设置：按任务类型指定模型 ----
+  "按任务类型指定模型（可选）": "Per-task model overrides (optional)",
+  "简单任务可用更低成本的模型，复杂任务可手动切换；留空的任务类型沿用上面的默认模型。": "Use a cheaper model for simple tasks and switch manually for complex ones; task types left blank use the default model above.",
+  "模型 ID，如 deepseek-chat": "Model ID, e.g. deepseek-chat",
+  "Temperature（留空用默认）": "Temperature (blank = default)",
+  "知识诊断": "Knowledge diagnosis",
+  "学习建议": "Study suggestions",
+  "项目复盘": "Project review",
+  "决策复盘": "Decision review",
+  "实验设计": "Experiment design",
+  "循环复盘": "Loop review",
+  "通用": "General",
 };

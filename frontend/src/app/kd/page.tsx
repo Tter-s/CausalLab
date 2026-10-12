@@ -15,7 +15,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, CircleDot, GraduationCap, Network, Plus, ShieldQuestion, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleDot, ExternalLink, GraduationCap, Network, Paperclip, Plus, ShieldQuestion, Trash2, Upload } from "lucide-react";
 import { PageHeader, EmptyState, LoadingBlock, ErrorState, AIBanner } from "@/components/layout/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,12 +23,12 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { del, getWith, patch, post } from "@/lib/api";
+import { del, getWith, patch, post, postForm } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useAICall } from "@/lib/ai-client";
 import { useL, useT } from "@/lib/i18n";
 import { fmtDateTime, fmtPercent } from "@/lib/format";
-import type { Attempt, Diagnosis, StudyTask, Subject, Suggestion, Topic, TopicEdge } from "@/lib/types";
+import type { Attachment, AttachmentKind, Attempt, Diagnosis, StudyTask, Subject, Suggestion, Topic, TopicEdge } from "@/lib/types";
 
 interface GraphOut {
   nodes: Topic[];
@@ -293,7 +293,7 @@ export default function KDPage() {
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-base">{selectedTopic ? t("任务：{name}", { name: selectedTopic.name }) : t("学习任务")}</CardTitle>
-              <CardDescription>{t("记录题目、上传解答思路，登记每次答题情况")}</CardDescription>
+              <CardDescription>{t("记录题目与解答要点，登记每次答题情况；题目和解答文件可在下方上传附件")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {selectedTopic && (
@@ -304,7 +304,7 @@ export default function KDPage() {
                     onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
                   />
                   <Textarea
-                    placeholder={t("题目内容 / 你的解答（可选粘贴）")}
+                    placeholder={t("题目内容 / 你的解答（可直接粘贴文本）")}
                     value={taskForm.question_text}
                     onChange={(e) => setTaskForm({ ...taskForm, question_text: e.target.value })}
                   />
@@ -355,6 +355,21 @@ export default function KDPage() {
                     />
                   )}
                 </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 题目与解答附件（文件上传，与文本记录并存） */}
+          <Card className="lg:col-span-5">
+            <CardHeader>
+              <CardTitle className="text-base">{t("题目与解答附件")}</CardTitle>
+              <CardDescription>{t("上传题目与你的解答文件（图片或 PDF，单文件不超过 10 MB）；与上方文本记录并存，互为补充。")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {selectedTopicId ? (
+                <TopicAttachments topicId={selectedTopicId} />
+              ) : (
+                <EmptyState icon={Paperclip} title={t("先选择知识点")} hint={t("选择知识点后即可上传题目与解答附件。")} />
               )}
             </CardContent>
           </Card>
@@ -676,6 +691,122 @@ function DiagnosisPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/** 附件类型的显示文案（以中文源文案为键传给 t()）。 */
+const ATTACHMENT_KIND_LABEL: Record<AttachmentKind, string> = {
+  question: "题目",
+  solution: "我的解答",
+  other: "其他附件",
+};
+
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * 题目/解答附件：上传、列出、打开、删除。
+ * 附件挂在「知识点」上（module=kd, ref_type=topic），与文本记录并存。
+ * 与文本记录的分工：文本记录用于快速登记要点，附件用于保存原始题目与手写解答的照片/PDF。
+ */
+function TopicAttachments({ topicId }: { topicId: number }) {
+  const t = useT();
+  const list = useApi<Attachment[]>(`/uploads?module=kd&ref_type=topic&ref_id=${topicId}`);
+  const [file, setFile] = React.useState<File | null>(null);
+  const [kind, setKind] = React.useState<AttachmentKind>("question");
+  const [busy, setBusy] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  const upload = async () => {
+    if (!file) {
+      toast.error(t("请先选择文件"));
+      return;
+    }
+    const fd = new FormData();
+    fd.append("module", "kd");
+    fd.append("ref_type", "topic");
+    fd.append("ref_id", String(topicId));
+    fd.append("kind", kind);
+    fd.append("file", file);
+    setBusy(true);
+    try {
+      await postForm<Attachment>("/uploads", fd);
+      toast.success(t("附件已上传"));
+      setFile(null);
+      if (fileRef.current) fileRef.current.value = "";
+      void list.refresh();
+    } catch (e) {
+      // 后端把「类型不支持 / 超过上限 / 为空」都放在 detail 中，ApiError.message 即为该提示
+      toast.error(e instanceof Error ? e.message : t("上传失败"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (id: number) => {
+    await del(`/uploads/${id}`);
+    toast.success(t("附件已删除"));
+    void list.refresh();
+  };
+
+  const items = list.data ?? [];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">
+        <div className="space-y-1">
+          <Label>{t("类型")}</Label>
+          <Select aria-label={t("附件类型")} value={kind} onChange={(e) => setKind(e.target.value as AttachmentKind)}>
+            {(Object.keys(ATTACHMENT_KIND_LABEL) as AttachmentKind[]).map((k) => (
+              <option key={k} value={k}>{t(ATTACHMENT_KIND_LABEL[k])}</option>
+            ))}
+          </Select>
+        </div>
+        <div className="min-w-56 flex-1 space-y-1">
+          <Label>{t("选择文件")}</Label>
+          <Input
+            ref={fileRef}
+            type="file"
+            aria-label={t("附件文件")}
+            accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+        </div>
+        <Button size="sm" disabled={busy} onClick={() => void upload()}>
+          <Upload /> {busy ? t("上传中…") : t("上传附件")}
+        </Button>
+      </div>
+
+      {list.loading && <LoadingBlock rows={2} />}
+      {list.error && <ErrorState error={list.error} onRetry={() => void list.refresh()} />}
+      {!list.loading && !list.error && items.length === 0 && (
+        <p className="py-3 text-center text-sm text-muted-foreground">{t("这个知识点还没有附件")}</p>
+      )}
+
+      <div className="space-y-2">
+        {items.map((a) => (
+          <div key={a.id} className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
+            <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <Badge variant="secondary">{t(ATTACHMENT_KIND_LABEL[a.kind])}</Badge>
+            <span className="min-w-0 flex-1 truncate text-sm" title={a.original_name}>{a.original_name}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{fmtBytes(a.size_bytes)}</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => window.open(`/api/uploads/${a.id}/content`, "_blank", "noopener")}
+            >
+              <ExternalLink /> {t("打开")}
+            </Button>
+            <Button size="sm" variant="ghost" aria-label={t("删除附件")} onClick={() => void remove(a.id)}>
+              <Trash2 />
+            </Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

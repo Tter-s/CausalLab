@@ -203,4 +203,76 @@ test.describe.serial("核心流程", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "概览" })).toBeVisible({ timeout: 30_000 });
   });
+
+  test("知识债务：上传题目与解答附件 → 出现在列表 → 可删除", async ({ page }) => {
+    await page.goto("/kd", { waitUntil: "domcontentloaded" });
+    await expect(page.getByPlaceholder("学科名称，如：高等数学")).toBeVisible({ timeout: 30_000 });
+    await page.getByPlaceholder("学科名称，如：高等数学").fill("E2E 附件学科");
+    await page.getByRole("button", { name: /创建学科/ }).click();
+    await page.getByLabel("知识点所属学科").selectOption({ label: "E2E 附件学科" });
+    await page.getByPlaceholder("知识点名称").fill("E2E 附件知识点");
+    await page.getByRole("button", { name: /创建知识点/ }).click();
+    await expect(page.getByText("E2E 附件知识点").first()).toBeVisible();
+
+    // 切到「学习任务与诊断」并选中知识点（附件卡片在此标签页内）
+    await page.getByRole("tab", { name: /学习任务与诊断/ }).click();
+    await page.locator("nav + div, body").getByText("E2E 附件知识点").first().click();
+    await expect(page.getByText("题目与解答附件")).toBeVisible({ timeout: 10_000 });
+
+    // 空状态
+    await expect(page.getByText("这个知识点还没有附件")).toBeVisible();
+
+    // 上传「题目」附件（真实 file input）
+    await page.getByLabel("附件类型").selectOption({ label: "题目" });
+    await page.getByLabel("附件文件").setInputFiles({
+      name: "E2E-题目.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("89504e470d0a1a0a", "hex"),
+    });
+    await page.getByRole("button", { name: /上传附件/ }).click();
+    await expect(page.getByText("附件已上传")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("E2E-题目.png")).toBeVisible();
+
+    // 再上传一个「我的解答」附件
+    await page.getByLabel("附件类型").selectOption({ label: "我的解答" });
+    await page.getByLabel("附件文件").setInputFiles({
+      name: "E2E-解答.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4\n% e2e\n"),
+    });
+    await page.getByRole("button", { name: /上传附件/ }).click();
+    await expect(page.getByText("E2E-解答.pdf")).toBeVisible({ timeout: 15_000 });
+
+    // 两个附件都在，且类型标签区分正确
+    await expect(page.getByText("E2E-题目.png")).toBeVisible();
+    await expect(page.getByText("E2E-解答.pdf")).toBeVisible();
+
+    // 上传事件进入统一时间线
+    const events = await fetch(`${API}/timeline?module=kd&limit=50`).then((r) => r.json());
+    expect(events.items.some((e: { event_type: string }) => e.event_type === "attachment.uploaded")).toBe(true);
+
+    // 删除第二个附件
+    await page.getByRole("button", { name: "删除附件" }).nth(1).click();
+    await expect(page.getByText("附件已删除")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("E2E-解答.pdf")).toHaveCount(0);
+    await expect(page.getByText("E2E-题目.png")).toBeVisible();
+  });
+
+  test("设置：按任务类型指定模型的输入区可用且能保存", async ({ page }) => {
+    await page.goto("/settings", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("按任务类型指定模型（可选）")).toBeVisible({ timeout: 30_000 });
+    // 八个任务类型都在
+    for (const label of ["知识诊断", "学习建议", "项目复盘", "决策复盘", "反事实推演", "实验设计", "循环复盘", "通用"]) {
+      await expect(page.getByText(label, { exact: true })).toBeVisible();
+    }
+    // 给「知识诊断」指定一个模型并保存
+    await page.getByPlaceholder("模型 ID，如 deepseek-chat").first().fill("e2e-model-x");
+    await page.getByRole("button", { name: /保存设置/ }).click();
+    await expect(page.getByText("AI 设置已保存")).toBeVisible({ timeout: 10_000 });
+
+    // 后端确实存下了这条覆盖
+    const cfg = await fetch(`${API}/settings/ai`).then((r) => r.json());
+    const row = cfg.task_models.find((m: { task_type: string }) => m.task_type === "kd_diagnosis");
+    expect(row?.model_id).toBe("e2e-model-x");
+  });
 });

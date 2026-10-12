@@ -69,6 +69,9 @@ HypStatus = Literal["draft", "testing", "supported", "rejected", "uncertain"]
 LoopStageName = Literal["observe", "hypothesize", "intervene", "measure", "review", "adjust"]
 LoopVerdict = Literal["effective", "ineffective", "uncertain"]
 
+# ---- 附件 ----
+AttachmentKind = Literal["question", "solution", "other"]
+
 # ---- AI ----
 AITaskType = Literal[
     "kd_diagnosis",

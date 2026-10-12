@@ -57,7 +57,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    from app.api import ai, auth, cross, data, dtm, kd, ml, ta
+    from app.api import ai, auth, cross, data, dtm, kd, ml, ta, uploads
     from app.api import settings as settings_api
 
     app.include_router(kd.router, prefix="/api")
@@ -69,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(ai.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
     app.include_router(data.router, prefix="/api")
+    app.include_router(uploads.router, prefix="/api")
 
     @app.get("/api/health", tags=["meta"])
     def health():

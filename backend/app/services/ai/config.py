@@ -72,7 +72,9 @@ def save_ai_config(db: Session, patch: AIConfigIn) -> AIConfigOut:
     data["timeout_seconds"] = patch.timeout_seconds
     data["monthly_budget"] = patch.monthly_budget
     data["auto_confirm_send"] = patch.auto_confirm_send
-    data["task_models"] = [tm.model_dump() for tm in patch.task_models]
+    # None = 保持原值（与 api_key 同约定）；否则整体替换为客户端传来的列表
+    if patch.task_models is not None:
+        data["task_models"] = [tm.model_dump() for tm in patch.task_models]
     data["price_prompt_per_m"] = patch.price_prompt_per_m
     data["price_completion_per_m"] = patch.price_completion_per_m
 

@@ -6,6 +6,7 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 from app.schemas.enums import (
+    AttachmentKind,
     EvidenceKind,
     HypStatus,
     LinkRelation,
@@ -223,6 +224,22 @@ class DayCount(BaseModel):
     count: int
 
 
+# ---------- 附件（题目 / 我的解答） ----------
+class AttachmentOut(ORMModel):
+    """附件元数据。刻意不暴露 stored_name（磁盘内部文件名）。"""
+
+    id: int
+    module: Module
+    ref_type: str
+    ref_id: int
+    kind: AttachmentKind
+    original_name: str
+    content_type: str
+    size_bytes: int
+    note: str
+    created_at: UTCDateTime
+
+
 # ---------- AI 设置 ----------
 class AITaskModelConfig(BaseModel):
     """按任务类型的模型覆盖（简单任务可用低成本模型）。"""
@@ -242,7 +259,9 @@ class AIConfigIn(BaseModel):
     timeout_seconds: float = Field(default=60, ge=5, le=600)
     monthly_budget: float = Field(default=0, ge=0)
     auto_confirm_send: bool = False
-    task_models: list[AITaskModelConfig] = []
+    # None 表示保持原值（与 api_key 同约定）。客户端若省略该字段，
+    # 不应把已有的按任务模型覆盖清空。
+    task_models: list[AITaskModelConfig] | None = None
     price_prompt_per_m: float = Field(default=2.0, ge=0)  # 每百万 prompt token 价格（元）
     price_completion_per_m: float = Field(default=8.0, ge=0)
 

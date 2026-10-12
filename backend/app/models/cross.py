@@ -117,3 +117,29 @@ class LoopStage(Base):
     stage: Mapped[str] = mapped_column(String(20))
     content: Mapped[dict] = mapped_column(JSON, default=dict)
     entered_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Attachment(Base, TimestampMixin):
+    """附件：上传的题目 / 我的解答等文件（本体存 data_dir/uploads/，库中只存元数据）。
+
+    与 evidence / entity_links 一致，按 (module, ref_type, ref_id) 挂到任意模块实体上，
+    因此 KD 的题目/解答上传可自然扩展到其他模块。
+    """
+
+    __tablename__ = "attachments"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    module: Mapped[str] = mapped_column(String(10), index=True)
+    ref_type: Mapped[str] = mapped_column(String(40), index=True)
+    ref_id: Mapped[int] = mapped_column(Integer, index=True)
+    # question（题目）| solution（我的解答）| other
+    kind: Mapped[str] = mapped_column(String(20), default="other", index=True)
+    # 用户上传时的原始文件名，仅用于展示，绝不参与磁盘路径拼接
+    original_name: Mapped[str] = mapped_column(String(300))
+    # 磁盘文件名：uuid4().hex + 白名单扩展名，杜绝路径穿越与覆盖
+    stored_name: Mapped[str] = mapped_column(String(120), unique=True)
+    content_type: Mapped[str] = mapped_column(String(120), default="")
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    note: Mapped[str] = mapped_column(String(500), default="")
+
+    __table_args__ = (Index("ix_attachments_ref", "module", "ref_type", "ref_id"),)

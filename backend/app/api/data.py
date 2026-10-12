@@ -1,6 +1,7 @@
 """数据管理 API：JSON 全量导出/导入、CSV 导出、演示数据、清空数据。"""
 from __future__ import annotations
 
+import contextlib
 import csv
 import io
 from datetime import date, datetime
@@ -13,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.models import (
     AIUsageLog,
+    Attachment,
     Attempt,
     Card,
     Counterfactual,
@@ -51,6 +53,7 @@ from app.models import (
 from app.services.base import utcnow
 from app.services.demo import seed_demo
 from app.services.events import record_event
+from app.services.uploads import resolve_stored_path
 
 router = APIRouter(prefix="/data", tags=["data"])
 
@@ -132,8 +135,25 @@ def _coerce(value, column):
         return None
 
 
+def _wipe_attachments(db: Session) -> None:
+    """清空附件：既删库记录，也删磁盘文件。
+
+    附件不参与 JSON 导出（二进制文件无法随 JSON 走），但必须随「清空业务数据」一起清理，
+    否则会留下指向已不存在文件的孤儿记录。
+    """
+    for att in db.scalars(select(Attachment)):
+        # 单个文件删除失败（如权限问题）不应中断整体清空
+        with contextlib.suppress(Exception):
+            resolve_stored_path(att.stored_name).unlink(missing_ok=True)
+    db.query(Attachment).delete(synchronize_session=False)
+    db.flush()
+
+
 def _wipe_business_data(db: Session, tables: dict | None = None) -> None:
     """按依赖逆序物理删除业务数据。tables=None 表示全部（settings 除外）。"""
+    if tables is None:
+        # 全量清空（清空数据 / 载入演示）时才动附件；按表导入时保留既有附件
+        _wipe_attachments(db)
     for name, model in reversed(EXPORT_ORDER):
         if name == "settings":
             continue

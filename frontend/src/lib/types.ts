@@ -481,6 +481,22 @@ export interface AuthStatus {
   authed: boolean;
 }
 
+// ---------- 附件（题目 / 我的解答） ----------
+export type AttachmentKind = "question" | "solution" | "other";
+
+export interface Attachment {
+  id: number;
+  module: string;
+  ref_type: string;
+  ref_id: number;
+  kind: AttachmentKind;
+  original_name: string;
+  content_type: string;
+  size_bytes: number;
+  note: string;
+  created_at: string;
+}
+
 // ---------- 设置 / AI ----------
 export interface AIConfig {
   provider: string;
