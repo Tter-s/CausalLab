@@ -1,0 +1,25 @@
+# Docker 构建上下文瘦身（配合 backend/Dockerfile 的选择性 COPY）。
+# 没有本文件时，`docker compose build` 会把整个 backend 目录（含 .venv 约 123 MB、
+# .mypy_cache 约 20 MB）传给 Docker 守护进程。
+
+# Python 环境与字节码
+.venv/
+__pycache__/
+*.py[cod]
+
+# 工具缓存
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# 本地运行数据：SQLite 库 + Fernet 密钥 + 上传附件，绝不进镜像
+data/
+data-e2e/
+
+# 版本控制与本地工具配置
+.git/
+.gitignore
+.zcodeignore

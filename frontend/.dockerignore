@@ -1,0 +1,29 @@
+# Docker 构建上下文瘦身（关键：frontend/Dockerfile 中有 `COPY . .`）。
+# 没有本文件时会有两个后果：
+#   1. 构建上下文高达约 1.37 GB（node_modules 545 MB + .next 820 MB）；
+#   2. `COPY . .` 会用宿主的 node_modules 覆盖容器内 npm ci 装好的 Linux 依赖，
+#      其中 @next/swc-win32-x64-msvc、lightningcss-win32-x64-msvc、
+#      @img/sharp-win32-x64 等宿主原生二进制会导致构建失败或产出坏镜像。
+
+# 依赖与构建产物（容器内重新安装/构建）
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.eslintcache
+
+# 测试产物
+test-results/
+playwright-report/
+blob-report/
+shots/
+
+# 版本控制与本地工具配置
+.git/
+.gitignore
+.zcodeignore
+
+# 环境变量与密钥
+.env
+.env.local
+.env.*.local
