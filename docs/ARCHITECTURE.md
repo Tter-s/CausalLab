@@ -6,7 +6,7 @@
 浏览器（Next.js 16 App Router, 中文 UI, 深/浅主题）
    │  相对路径 /api/*（Next rewrites 反向代理，免 CORS）
    ▼
-FastAPI（90+ REST 端点，Pydantic v2 校验）
+FastAPI（99 条路径 / 134 个操作，Pydantic v2 校验）
    │
    ├── SQLAlchemy 2.x ── SQLite（默认）/ PostgreSQL（CAUSALAB_DB_URL，未在本机验证）
    ├── Alembic（启动时自动 upgrade head；SQLite 用 render_as_batch）
@@ -24,6 +24,8 @@ Monorepo：`backend/`（Python 包管理用 uv）+ `frontend/`（npm）。接口
 events（事件日志）        所有模块的关键动作都写一条：module + event_type + ref_type/ref_id + title + importance
 evidence（证据记录）      kind: fact | speculation | missing_evidence | ai_analysis | user_correction
 entity_links（实体链接）  from(module,ref) → to(module,ref)，relation: spawned_from | validates | feedback_to | associated_with
+attachments（附件）       module + ref_type/ref_id + kind: question | solution | other；
+                          库中只存元数据，文件本体在 data_dir/uploads/，磁盘名由 uuid 生成
 ```
 
 产品级约束如何在模型层落实：

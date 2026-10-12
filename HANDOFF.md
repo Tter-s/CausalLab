@@ -18,7 +18,7 @@
 |---|---|
 | 后端 | Python 3.14（锁死，见 §5）+ FastAPI + SQLAlchemy 2.1 + Alembic + SQLite（可切 PG）+ py-fsrs v6（官方库，MIT）+ bcrypt + cryptography(Fernet) |
 | 前端 | Next.js 16（App Router，纯客户端取数）+ React 19 + Tailwind v4 + Radix（shadcn 风格手写组件）+ Recharts + @xyflow/react + next-themes + sonner |
-| 测试 | pytest（后端 61 用例）/ Vitest（前端 19）/ Playwright（E2E 8，复用系统 Edge） |
+| 测试 | pytest（后端 75 用例）/ Vitest（前端 20）/ Playwright（E2E 10，复用系统 Edge） |
 | 取数模式 | 前端统一相对路径 `/api/*`，由 Next rewrites 代理到 FastAPI `127.0.0.1:8000`（免 CORS） |
 
 ## 3. 目录速览
@@ -27,25 +27,25 @@
 CausalLab/
 ├── 启动CausaLab.bat          # 双击启动前后端（自动清端口+等就绪+开浏览器）
 ├── README.md / LICENSE / docker-compose.yml
-├── docs/  ARCHITECTURE.md / API.md（设计决策 + 接口）
+├── docs/  ARCHITECTURE.md / API.md / PROGRESS.md（设计决策 + 接口 + 进度与遗留）
 ├── backend/
-│   ├── app/api/        # kd / ml / dtm / ta / cross(时间线等) / ai / auth / settings / data
-│   ├── app/models/     # 36 张表（base=Base+utcnow；auth=会话表）
-│   ├── app/services/   # events/links(事件证据链接)、scheduling(FSRS 适配)、
+│   ├── app/api/        # kd / ml / dtm / ta / cross(时间线等) / ai / auth / settings / data / uploads
+│   ├── app/models/     # 37 张表（base=Base+utcnow；auth=会话表；attachments=题目/解答附件）
+│   ├── app/services/   # events/links(事件证据链接)、uploads(附件存储)、scheduling(FSRS 适配)、
 │   │   │               # kd_rules(规则诊断)、calibration、demo、crypto(Fernet)、auth(认证)
 │   │   └── ai/         # Provider 抽象：none/mock/openai_compat + config(隐私闸门/预算/结构化校验)
-│   ├── alembic/        # 4 个迁移（初始 schema / auth_sessions / events 索引 / recall_ms）
+│   ├── alembic/        # 5 个迁移（初始 schema / auth_sessions / events 索引 / recall_ms / attachments）
 │   ├── scripts/smoke_no_ai.py   # 无 AI 全链路冒烟（24 项，对运行中的 8000 端口执行）
-│   └── tests/          # 61 用例
+│   └── tests/          # 75 用例（含 test_uploads.py 14 个附件与清空联动用例）
 └── frontend/
     ├── src/app/        # 12 路由：/ /kd /ml /dtm /dtm/[id] /ta /ta/[id] /timeline
     │                   #        /hypotheses /loops /settings /login
     ├── src/components/ # layout/(app-shell+shared) ui/(手写 shadcn 风格组件) brand-mark
     │                   # dev-tools-zh（仅 dev：汉化+拖拽 Next Dev Tools，见 §8 末条）
-    ├── src/lib/        # api.ts(含428/401处理) useApi.ts i18n.tsx(双语) i18n-page-strings.ts
-    │                   # ai-client.tsx(428确认流) format.ts(日期语言) types.ts
-    ├── e2e/flows.spec.ts   # 8 个场景（含认证流程）
-    └── tests/          # Vitest 19（含 i18n 覆盖扫描防退化测试）
+    ├── src/lib/        # api.ts(含428/401处理 + postForm 附件上传) useApi.ts i18n.tsx(双语)
+    │                   # i18n-page-strings.ts ai-client.tsx(428确认流) format.ts types.ts
+    ├── e2e/flows.spec.ts   # 10 个场景（含认证流程、附件上传、按任务模型保存）
+    └── tests/          # Vitest 20（含 i18n 覆盖扫描防退化测试 + postForm multipart 测试）
 ```
 
 ## 4. 启动 / 测试（Windows，Git Bash）
@@ -62,7 +62,7 @@ cd frontend && npx playwright test        # E2E，自动拉起隔离前后端（
 cd backend  && uv run python scripts/smoke_no_ai.py   # 无 AI 冒烟（需 8000 在运行）
 ```
 
-当前基线：**pytest 61/61 · Vitest 19/19 · E2E 8/8 · 冒烟 24/24 · AI 测试连接 ✅ · ruff/mypy/eslint 全绿 · build 12 业务路由成功**。
+当前基线：**pytest 75/75 · Vitest 20/20 · E2E 10/10 · 冒烟 24/24 · AI 测试连接 ✅ · ruff/mypy/eslint 全绿 · build 12 业务路由成功**。
 服务默认未启动（启动方式见上）；如需重启，可先 `npx kill-port 8000 3000` 清理端口。
 注意：E2E 需先关 :3000 dev server（Next 16 同项目不允许第二个 dev server）；
 冒烟脚本若在已配置真实 AI 时运行，第 0/1 组各 1 项按"无 AI 前提"断言会报失败，属预期。
@@ -84,13 +84,16 @@ cd backend  && uv run python scripts/smoke_no_ai.py   # 无 AI 冒烟（需 8000
 3. **KD 诊断护栏**：答题 <3 或失败 <2 → 强制 `insufficient_data` 且置信度 ≤0.25；备选解释永远 ≥1；用户纠正写入 user_correction 证据。
 4. **AI 永不直接写库**：`run_structured()` = 隐私确认(428)→预算(402)→调用→用量记录→JSON 剥壳→Pydantic 校验→失败重试→仍失败回退规则分析。MockProvider 用于测试与无 Key 演示。
 5. **认证**：可选密码保护，默认关。启用后中间件拦 `/api/*`（白名单见 `AUTH_PUBLIC_PATHS`）；会话 HttpOnly Cookie 30 天；中间件**先关自身 DB 会话再放行**（避免 SQLite 锁冲突）。
-6. **i18n 约定**：`t("中文原文")` 源文键模式——zh 回退键本身，en 查 `i18n-page-strings.ts`（新增文案先在 `scripts/_i18n_strings_all.py` 登记再重建）。**Vitest 有覆盖扫描：任何 t("中文…") 缺英文翻译会挂测试**。
-7. **数据获取模式**：页面全用自研 `useApi` hook；`ai-client.tsx` 的 `useAICall` 处理 428→预览→确认重发。刻意整页跳转（登出/演示/清空后）有 eslint 豁免注释——不要改成软导航。
+6. **i18n 约定**：`t("中文原文")` 源文键模式——zh 回退键本身，en 查 `i18n-page-strings.ts`。**Vitest 有覆盖扫描：任何 t 调用里的中文键缺英文翻译会挂测试**（新增文案直接在该文件补一条英文即可；早期文档提到的 `scripts/_i18n_strings_all.py` 生成脚本已不存在）。
+7. **附件上传**：`attachments` 表按 `(module, ref_type, ref_id)` 挂到任意实体（同 evidence/links 模式）；文件本体在 `data_dir/uploads/`，磁盘名由 uuid 生成，用户文件名只存库展示。端点 `POST/GET /api/uploads`、`GET /api/uploads/{id}/content`、`DELETE /api/uploads/{id}`。前端用 `api.ts` 的 `postForm()`——它刻意清空 headers，否则 `api()` 默认的 `application/json` 会让后端无法解析 multipart。
+8. **数据获取模式**：页面全用自研 `useApi` hook；`ai-client.tsx` 的 `useAICall` 处理 428→预览→确认重发。刻意整页跳转（登出/演示/清空后）有 eslint 豁免注释——不要改成软导航。
+9. **AI 配置的 None 语义**：`AIConfigIn` 中 `api_key` 与 `task_models` 都是「None/省略 = 保持原值」。改后端时别写成无条件覆盖，否则任何只提交部分字段的客户端都会清空用户已存的配置。
 
 ## 7. 遗留问题现状
 
-- ~~学习步骤细分~~ ✅（第八轮前）~~国际化~~ ✅ ~~品牌图标~~ ✅ ~~时间线游标分页~~ ✅ ~~认证~~ ✅ ~~回忆时长~~ ✅ ~~依赖传播~~ ✅ ~~死代码清理~~ ✅ ~~AI 真实冒烟~~ ✅（第九次迭代：DeepSeek 测试连接 577ms + 端到端诊断 source=ai 实测通过）
+- ~~学习步骤细分~~ ✅（第八轮前）~~国际化~~ ✅ ~~品牌图标~~ ✅ ~~时间线游标分页~~ ✅ ~~认证~~ ✅ ~~回忆时长~~ ✅ ~~依赖传播~~ ✅ ~~死代码清理~~ ✅ ~~AI 真实冒烟~~ ✅（第九次迭代：DeepSeek 测试连接 577ms + 端到端诊断 source=ai 实测通过）~~题目/解答附件上传~~ ✅（本轮：表+迁移+端点+前端+12 个后端用例）
 - **遗留清零**。另有 6 条"未在本机验证项"（Docker/PG/MiMo/Moonshot/OpenAI 官方/CI 真跑等，环境限制）
+- 本轮同时修掉：CI E2E job 的 3 处错误配置、缺失的 `.dockerignore`、文档计数漂移与 API 文档漏登、缺 PostgreSQL 驱动、`alembic.ini` 中文注释导致迁移静默降级、pytest 临时目录泄漏、依赖下限偏低、`task_models` 被部分提交清空、Next 调试按钮遮挡侧边栏文案。详见 `docs/PROGRESS.md`。
 
 ## 8. 踩过的坑（避免重蹈）
 
@@ -98,7 +101,10 @@ cd backend  && uv run python scripts/smoke_no_ai.py   # 无 AI 冒烟（需 8000
 - **eslint-config-next 2025**：`set-state-in-effect` 新规则对取数 effect 误报（已降 warn）；`no-location-assign` 对刻意整页跳转需豁免注释
 - **SQLite 并发**：中间件/长事务内不要在 `call_next` 期间持有连接；auth 中间件已按“先关会话再放行”实现
 - **fsrs 官方库**：要求 UTC aware datetime；`Card.to_dict()` 存 JSON、`from_dict` 重建（见 scheduling.py 适配层）
-- **Alembic**：alembic.ini 不能写中文注释（GBK 解码崩）；SQLite 迁移用 `render_as_batch`
+- **Alembic**：`alembic.ini` 必须保持**纯 ASCII**——Alembic 以 `encoding="locale"`（本机 GBK）读它，任何非 ASCII 字节都会抛 `UnicodeDecodeError`，而 `app.main._run_migrations()` 会**静默回退** `Base.metadata.create_all()`，表面上应用照常可用、pytest 也照常通过，但迁移链路其实已经失效。SQLite 迁移用 `render_as_batch`。排查方法：直接调用 `app.main._run_migrations()` 并打开 INFO 日志，看是打印 "Alembic migration finished." 还是 "failed, falling back"。
+- **i18n 覆盖测试会把注释也算进去**：`tests/i18n.test.ts` 用正则扫全 src 找 `t("…")`，所以**不要在注释或文档字符串里写 `t("中文…")` 这种字面示例**，否则会被判成"缺翻译的键"。写说明时把引号去掉（如 `t 调用中的中文键`）。
+- **部分提交的配置不要无条件覆盖**：`AIConfigIn` 里 `api_key` / `task_models` 都是「None = 保持原值」。历史上前端 `save()` 没带 `task_models`，后端又无条件覆盖，导致**每次在界面保存 AI 设置都会清空按任务模型的覆盖**。新增可选字段时请沿用 None 语义。
+- **Windows 上 pytest 的临时目录**：`conftest.py` 的 `pytest_sessionfinish` 必须**先 `engine.dispose()`** 再 `rmtree`，否则 SQLite 句柄未释放会导致删除失败，而 `ignore_errors=True` 会吞掉失败——症状是临时目录里持续累积只剩一个 `causalab.db` 的 `causalab_test_*` 目录。
 - **测试隔离**：pytest 共享一个临时库（conftest 设 `CAUSALAB_DATA_DIR`）；写测试注意跨用例状态污染（AI 配置、限流器、会话 cookie 都有前车之鉴）；E2E beforeEach 会先关认证+清业务数据
 - **run_structured 提示词必须带 JSON Schema**（第九次迭代修的真 Bug）：只写"符合字段结构"而不给 schema，Mock 测不出、真实模型必然校验失败回退规则；schema 以 `model_json_schema()` 附在系统提示词
 - **Next 16 同项目只允许一个 dev server**：:3000 在跑时 E2E（:3100）直接启动失败；跑 E2E 前先关 :3000

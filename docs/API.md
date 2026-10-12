@@ -132,6 +132,20 @@
 | GET/POST | `/loops/{id}/stages` | 阶段推进（observe→hypothesize→intervene→measure→review→adjust） |
 | GET/PATCH | `/loops/{id}` | 详情 / 关闭（verdict: effective/ineffective/uncertain） |
 
+## 附件（题目 / 解答）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET/POST | `/uploads` | 列出某实体的附件 / 上传附件（`multipart/form-data`：`module`、`ref_type`、`ref_id`、`kind`、`note`、`file`）。响应**不回传**磁盘内部文件名 |
+| GET | `/uploads/{id}/content` | 下载 / 预览附件本体 |
+| DELETE | `/uploads/{id}` | 删除附件（同时删除磁盘文件，204） |
+
+- 附件按 `(module, ref_type, ref_id)` 挂到任意模块实体上（与 `/evidence`、`/links` 同模式）
+- `kind`：`question`（题目）/ `solution`（我的解答）/ `other`
+- 允许的扩展名：`png` `jpg` `jpeg` `webp` `gif` `pdf` `txt` `md`；`content_type` 由扩展名推导，**不信任客户端声明**
+- 单文件上限 **10 MB**：超限返回 `413` 并清理已写入的半截文件；空文件返回 `422`
+- 上传与删除都会写入统一事件流（`attachment.uploaded` / `attachment.deleted`）
+
 ## 设置 / AI / 数据管理
 
 | 方法 | 路径 | 说明 |

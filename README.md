@@ -10,7 +10,7 @@ CausaLab 不是错题本、记忆卡片、日记或待办工具，而是一个�
 
 | 模块 | 解决什么 | 关键能力 |
 |---|---|---|
-| **知识债务 (KD)** | 学习障碍诊断而非正确率统计 | 知识依赖图谱（React Flow）、答题记录、五类障碍分类（概念/提取/方法/执行/迁移）、可纠正的 AI/规则诊断、建议→验证→结论闭环 |
+| **知识债务 (KD)** | 学习障碍诊断而非正确率统计 | 知识依赖图谱（React Flow）、答题记录、**题目/解答附件上传（图片、PDF）**、五类障碍分类（概念/提取/方法/执行/迁移）、可纠正的 AI/规则诊断、建议→验证→结论闭环 |
 | **记忆实验室 (ML)** | 用自己的数据检验记忆策略 | FSRS-6 官方算法调度、主动回忆复习、遗忘/复习统计图、随机分组 A/B 对照实验（附科学性免责声明） |
 | **决策时间机 (DTM)** | 记录决策当时的真实想法 | 不可覆盖快照（只追加）、概率预测与校准分析（Brier 分数）、新信息时间线、过程质量复盘（与结果好坏解耦）、反事实推演（恒为假设标记） |
 | **任务复盘 (TA)** | 用过程数据解释延期与返工 | 任务/子任务/依赖、阻塞/返工/中断/需求变化事件、预估-实际统计、规则/AI 复盘报告（严格区分事实/推测/缺失证据）、改进措施追踪 |
@@ -66,7 +66,7 @@ npm run dev
 ### 运行测试
 
 ```bash
-# 后端（61 个用例：规则诊断护栏、快照不可覆盖、FSRS 调度、AI 闸门/预算/回退、导入导出等）
+# 后端（75 个用例：规则诊断护栏、快照不可覆盖、FSRS 调度、AI 闸门/预算/回退、附件上传安全、导入导出等）
 cd backend && uv run pytest -q
 
 # 前端单测（Vitest）
@@ -107,8 +107,9 @@ docker compose up --build
 
 - 单用户本地模式，数据默认存于本机 SQLite（`backend/data/causalab.db`）；
 - 支持全量 JSON 导出/导入、答题与复习记录 CSV 导出、一键清除；
+- **题目/解答附件**存于 `backend/data/uploads/`（该目录随 `backend/data/` 一并被 `.gitignore` 排除），仅接受图片/PDF/文本类白名单扩展名，单文件上限 10 MB；
 - API Key 用 Fernet 加密存储在 `backend/data/secret.key`（该文件与数据库均在 `.gitignore` 中）；
-- 生产可切换 PostgreSQL（`CAUSALAB_DB_URL`）——见下方未验证清单。
+- 生产可切换 PostgreSQL（`CAUSALAB_DB_URL`，驱动 `psycopg[binary]` 已内置）——见下方未验证清单。
 
 ## 未在本机验证的项（如实标注）
 
@@ -119,11 +120,14 @@ docker compose up --build
 | `docker compose up`（含 backend/frontend Dockerfile） | ⚠️ 未在本机验证（本机无 Docker） |
 | PostgreSQL 集成（`CAUSALAB_DB_URL=postgresql+psycopg://…`） | ⚠️ 未在本机验证（SQLite 已充分验证；Alembic 迁移对 PostgreSQL 的兼容按标准类型编写） |
 | OpenAI 官方 API（`api.openai.com`）连通 | ⚠️ 适配代码已写（OpenAICompatProvider），本机网络不可达，标注「本机未验证」 |
-| DeepSeek / MiMo / Moonshot 真实调用 | ⚠️ 未用真实 Key 冒烟（本机网络可达 `api.deepseek.com`/`api.moonshot.cn`，但无可用 Key）；协议层已由 MockProvider + 单测覆盖请求构造/重试/解析 |
+| DeepSeek 真实调用 | ✅ **已打通**（测试连接 577ms + 端到端诊断 `source=ai` 实测通过）；模型名与 Base URL 由用户填写，不硬编码 |
+| MiMo / Moonshot 真实调用 | ⚠️ 未在本机验证（网络可达，但无可用 Key）；协议层与 DeepSeek 共用 `OpenAICompatProvider`，已由 MockProvider + 单测覆盖请求构造/重试/解析 |
 | GitHub Actions CI 真跑 | ⚠️ 未在本机验证（`act` 需要 Docker）；workflow 按官方 Action 语法编写 |
 | Playwright Chromium（CI） | ⚠️ 本机使用系统 Edge（channel: `msedge`）验证通过；CI 的 Chromium 路径未实跑 |
 
-已在本机充分验证：pytest 61 用例、Vitest 19 用例、`next build`、uvicorn 冒烟、Playwright E2E（Edge，8 个场景）、Alembic 迁移（SQLite）、ruff、mypy。
+已在本机充分验证：pytest **75** 用例、Vitest **20** 用例、`next build`、uvicorn 冒烟、Playwright E2E（Edge，**10** 个场景）、无 AI 全链路冒烟 **24/24**、Alembic 迁移（SQLite）、附件上传端到端（含真实文件选择与删除）、ruff、mypy、tsc、eslint。
+
+完整进度与未解决问题清单见 [PROGRESS.md](docs/PROGRESS.md)。
 
 ## 项目结构
 
@@ -131,26 +135,26 @@ docker compose up --build
 CausalLab/
 ├── backend/                # FastAPI + SQLAlchemy 2 + Alembic + SQLite/PG
 │   ├── app/
-│   │   ├── api/            # kd / ml / dtm / ta / cross / ai / settings / data 路由
-│   │   ├── models/         # 36 张表（四模块 + 跨模块事件/证据/链接 + 设置/AI 用量）
+│   │   ├── api/            # kd / ml / dtm / ta / cross / ai / auth / settings / data / uploads 路由
+│   │   ├── models/         # 37 张表（四模块 + 跨模块事件/证据/链接/附件 + 设置/AI 用量）
 │   │   ├── schemas/        # Pydantic v2 请求/响应模型
-│   │   ├── services/       # 事件/证据/链接、FSRS 适配、规则诊断、校准、演示数据
+│   │   ├── services/       # 事件/证据/链接、附件存储、FSRS 适配、规则诊断、校准、演示数据
 │   │   │   └── ai/         # Provider 抽象：none / mock / openai-compat(DeepSeek/MiMo/…)
 │   │   ├── config.py       # 环境变量配置（CAUSALAB_* 前缀）
 │   │   └── main.py         # 应用工厂（启动时自动迁移）
-│   ├── alembic/            # 迁移
-│   └── tests/              # pytest（61 用例）
+│   ├── alembic/            # 迁移（5 个）
+│   └── tests/              # pytest（75 用例）
 ├── frontend/               # Next.js 16 + React 19 + Tailwind v4 + Radix + Recharts + React Flow
 │   ├── src/app/            # 12 个路由（概览/四模块/时间线/假设/循环/设置/登录 + 2 个详情页）
 │   ├── src/components/     # shadcn 风格 UI 组件库 + 布局壳
 │   ├── src/lib/            # API 客户端（含 428 确认闸门）、hooks、i18n（zh 完整/en 预留）
-│   ├── e2e/                # Playwright（Edge）8 个核心场景
+│   ├── e2e/                # Playwright（Edge）10 个核心场景
 │   └── tests/              # Vitest 单测
 ├── docker-compose.yml      # 未在本机验证
 └── .github/workflows/ci.yml
 ```
 
-更多设计细节见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) 与 [API.md](docs/API.md)。
+更多设计细节见 [ARCHITECTURE.md](docs/ARCHITECTURE.md) 与 [API.md](docs/API.md)；开发进度与遗留问题见 [PROGRESS.md](docs/PROGRESS.md)，新会话上下文见 [HANDOFF.md](HANDOFF.md)。
 
 ## 许可证
 
