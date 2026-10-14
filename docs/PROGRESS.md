@@ -10,8 +10,8 @@
 
 | 项目 | 结果 | 实测方式 |
 |---|---|---|
-| 后端单元/集成测试 | **78 passed** | `cd backend && uv run pytest -q` |
-| 前端单元测试 | **24 passed** | `cd frontend && npx vitest run` |
+| 后端单元/集成测试 | **79 passed** | `cd backend && uv run pytest -q` |
+| 前端单元测试 | **26 passed** | `cd frontend && npx vitest run` |
 | E2E（Playwright + 系统 Edge） | **10 passed** | `cd frontend && npx playwright test` |
 | 无 AI 全链路冒烟 | **24 通过 / 0 失败** | `cd backend && uv run python scripts/smoke_no_ai.py` |
 | ruff | All checks passed | `uv run ruff check app tests` |
@@ -21,6 +21,8 @@
 | next build | 成功，**12 条业务路由** | `npm run build` |
 | **静态导出构建** | **成功，产物 `frontend/out/`（2.5 MB，全部路由目录化）** | `npm run build:static` |
 | **静态页同源托管浏览器实测** | **通过**（uvicorn + Edge：首页/建决策/详情/深链/TA 全流程 8 项） | 见 §2.5 |
+| **桌面版打包（PyInstaller onedir）** | **成功，68 MB**；开发态/打包版双冒烟通过、真实窗口启动验证通过（关窗无残留进程） | `desktop\build.ps1` → `CausaLab.exe --smoke` |
+| **安卓 APK（Flutter release）** | **构建成功，45.7 MB**（aapt2 校验：`com.causalab.causalab` v0.1.0 / INTERNET / arm64+armv7+x86_64） | `flutter build apk --release` |
 | 数据模型 | **37 张业务表**（+ `alembic_version`） | `len(Base.metadata.tables)` |
 | 数据库迁移 | head = `b69c58233d86`（共 5 个迁移） | `uv run alembic current` |
 | API 规模 | **99 条路径 / 134 个操作** | `app.openapi()` |
@@ -73,6 +75,26 @@
 - **测试**：后端新增 `tests/test_static.py` 3 个用例（根页面与深链目录、`/api` 优先级、目录缺失不挂载）；前端新增 4 个基址解析单元用例。
 - **本机实测**（Edge，经 uvicorn 同源托管 `http://127.0.0.1:8031/`）：首页加载、UI 建决策、点卡片进详情（查询参数路由）、详情内加预测、直接深链（无尾斜杠，StaticFiles 307 跳转保留 `?id=`）、TA 项目详情、刷新持久性——**8 项全部通过**。
 
+### 2.6 桌面应用与安卓 APK（本轮新增，三大分发形态齐备）
+
+**桌面应用（`desktop/`）——Windows 双击即用，使用者无需 Python / Node / Docker**：
+
+- `desktop/shell.py`：内嵌 uvicorn（127.0.0.1 随机空闲端口，同源托管静态前端）+ WebView2 窗口（pywebview 6.2.1 + pythonnet 3.2.1）；
+  数据目录便携化（打包态 = exe 同级 `data/`，开发态 = `desktop/.data/`）；`--smoke` 无窗口自检；日志写 `<数据目录>/desktop.log`（打包版无控制台）；
+- **桌面桥接（前端）**：`isDesktopShell()` / `openExternal()`——附件打开与 JSON/CSV 导出改走系统浏览器（webview 内 `window.open` / blob 下载不可靠）；后端 `GET /api/data/export?download=1` 附 `Content-Disposition`；
+- **打包**：`desktop/build.ps1` 一键（PyInstaller onedir；spec 捆绑静态前端 `web/`、`alembic/` 迁移脚本与配置、webview / pythonnet / clr_loader 资源；uvicorn / sqlalchemy 隐藏导入）；产物 **68 MB**；
+- 依赖组：`backend/pyproject.toml` 新增可选 `desktop` 组（pywebview / pythonnet / pyinstaller；默认安装与 CI 不受影响，uv.lock 已同步）；
+- **验证（本机）**：开发态冒烟 ✅ → PyInstaller 打包 ✅ → 打包版 `--smoke` ✅（含完整 Alembic 迁移链）→ 真实窗口启动 ✅（WebView2 加载、关窗无残留进程）。
+
+**安卓 APK（`mobile/`）——Flutter WebView 客户端（手机连接电脑端的 CausaLab，同一局域网）**：
+
+- 首次填写电脑地址（`http://<电脑IP>:8000`）并保存，之后自动直连；右上角可刷新 / 改地址；连接失败有明确提示与重试入口；
+- 允许明文 HTTP（局域网 http://）+ INTERNET 权限；应用名 CausaLab；release 采用 Flutter 模板默认 debug 签名（可直接侧载）；
+- **构建**：`flutter build apk --release`（JDK 17 + Android SDK + Flutter 3.44.9）；**gradle 发行版改用华为云镜像**（官方下载链重定向到 github.com 资产，本机网络不可达；文件内附注释可换回官方源）；
+- 产物：`mobile/build/app/outputs/flutter-apk/app-release.apk`（**45.7 MB**，aapt2 校验：包名 `com.causalab.causalab` v0.1.0 / INTERNET / arm64-v8a+armeabi-v7a+x86_64）；
+- **手机访问前置**：电脑端需 `uvicorn --host 0.0.0.0` + 防火墙放行 8000（README / mobile/README 已写明）；暴露到局域网**建议启用密码保护**；
+- 未验证：**真机安装与局域网连调**（本机无 Android 设备/模拟器，见 §3）。
+
 ---
 
 ## 3. 未在本机验证的项（**严禁当作"通过"**）
@@ -88,8 +110,10 @@
 | CI 的 Playwright Chromium 路径 | ⚠️ **未在本机验证** | 本机使用系统 Edge（`channel: msedge`）验证通过；CI 的 Chromium 路径未实跑 |
 | Firefox / WebKit | ⚠️ **未在本机验证** | 本机只有 Edge，E2E 仅覆盖 Edge |
 | HuggingFace 下载 | ➖ 不涉及 | 本产品明确不做本地模型部署 |
+| 安卓 APK 真机安装与局域网连调 | ⚠️ **未在本机验证** | 本机无 Android 设备/模拟器；APK 构建与包体校验（aapt2）已通过，安装与连接流程需真机验证 |
+| 桌面版窗口内的完整手工点选流程 | ⚠️ 部分验证 | 窗口启动、页面加载、双冒烟（含迁移链）已验证；完整交互（建决策/附件/导出）建议按 `desktop/README.md` 手动过一遍 |
 
-**已在本机充分验证**：pytest 78、Vitest 24、`next build`、`npm run build:static`（静态产物 `frontend/out/`）、uvicorn 同源托管静态页的浏览器全流程（Edge，8 项）、Playwright E2E（Edge，10 场景）、Alembic 迁移（SQLite）、ruff、mypy、tsc、eslint、无 AI 全链路冒烟 24/24、附件上传端到端（经 Next 代理的真实链路 + 浏览器内真实文件选择与删除）。
+**已在本机充分验证**：pytest 79、Vitest 26、`next build`、`npm run build:static`（静态产物 `frontend/out/`）、uvicorn 同源托管静态页的浏览器全流程（Edge，8 项）、**桌面版**（PyInstaller 打包成功、开发态/打包版双冒烟、真实窗口启动）、**安卓 APK**（release 构建成功、aapt2 包体校验）、Playwright E2E（Edge，10 场景）、Alembic 迁移（SQLite）、ruff、mypy、tsc、eslint、无 AI 全链路冒烟 24/24、附件上传端到端（经 Next 代理的真实链路 + 浏览器内真实文件选择与删除）。
 
 ---
 
@@ -140,15 +164,17 @@
 | 22 | `4dea440` | 消除弃用告警、lint 告警与冒烟脚本 GBK 编码崩溃 |
 | 23 | `f2d1cae` | 恢复 `alembic.ini` 纯 ASCII，修复启动迁移静默降级 |
 | 24 | *（本轮）* | 题目/解答附件上传（表+迁移+端点+前端+测试）；按任务类型选模型的前端入口；修 `task_models` 被清空的数据丢失、pytest 临时目录泄漏、依赖下限、调试按钮遮挡；本文件重建 |
-| 25 | *（本轮）* | 静态网页分发：解除 API 通道对 Next 代理的硬依赖（基址注入 + `apiUrl()` 统一）；详情页改查询参数路由；`npm run build:static` 静态导出；FastAPI 同源托管 `out/`；新增 test_static.py 3 例 + 基址解析 4 例；冒烟脚本支持 `CAUSALAB_SMOKE_BASE` 端口覆盖 |
+| 25 | *（静态分发轮）* | 静态网页分发：解除 API 通道对 Next 代理的硬依赖（基址注入 + `apiUrl()` 统一）；详情页改查询参数路由；`npm run build:static` 静态导出；FastAPI 同源托管 `out/`；新增 test_static.py 3 例 + 基址解析 4 例；冒烟脚本支持 `CAUSALAB_SMOKE_BASE` 端口覆盖 |
+| 26 | *（本轮）* | **桌面应用**（pywebview 壳 + 前端桌面桥接 + PyInstaller 打包，68 MB）+ **安卓 APK**（Flutter WebView 客户端，45.7 MB）；gradle wrapper 改华为云镜像；README 升级为三大分发形态；pytest 79 / Vitest 26 |
 
 ---
 
 ## 6. 下一步建议
 
-1. **桌面端 App（原计划 P4–P5，本轮未做）**：`pywebview + PyInstaller` 壳（选型已探测确认可行），双击即用、内置后端；依赖组与打包脚本按计划 `PLAN-STATIC-DESKTOP.md` §3 执行。
-2. **在具备 Docker 的机器上真跑一次** `docker compose up --build`，验证 Dockerfile 与 `.dockerignore`（本机永远做不到）。
-3. **在具备 PostgreSQL 的机器上**验证 `CAUSALAB_DB_URL=postgresql+psycopg://...` 的建表与迁移兼容性。
-4. **让 CI 真跑一次**（当前仅本地校验过语法与配置项名称）。
-5. 若要暴露到公网：启用密码保护，并考虑在反向代理层再加一道登录限流（进程内限流重启即清零）。
-6. 附件上传目前仅接在 KD 知识点上；由于表结构是通用的 `(module, ref_type, ref_id)`，可按需扩展到 ML 卡片、DTM 决策、TA 任务等。
+1. **安卓 APK 真机验证**：把 `mobile/build/app/outputs/flutter-apk/app-release.apk` 安装到手机，按 README「安卓 APK」一节连接电脑后端并走一遍核心流程（本机无 Android 设备/模拟器，未能代验）。
+2. **桌面版打磨（可选）**：自定义应用图标、正式代码签名（当前为未签名 exe，首次运行 SmartScreen 会提示「仍要运行」即可）、开机自启等。
+3. **在具备 Docker 的机器上真跑一次** `docker compose up --build`，验证 Dockerfile 与 `.dockerignore`（本机永远做不到）。
+4. **在具备 PostgreSQL 的机器上**验证 `CAUSALAB_DB_URL=postgresql+psycopg://...` 的建表与迁移兼容性。
+5. **让 CI 真跑一次**（当前仅本地校验过语法与配置项名称）；可考虑在 CI 增加桌面打包与 APK 构建任务（本机已证明两者均可构建）。
+6. 若要暴露到公网：启用密码保护，并考虑在反向代理层再加一道登录限流（进程内限流重启即清零）。
+7. 附件上传目前仅接在 KD 知识点上；由于表结构是通用的 `(module, ref_type, ref_id)`，可按需扩展到 ML 卡片、DTM 决策、TA 任务等。

@@ -6,6 +6,8 @@ CausaLab 不是错题本、记忆卡片、日记或待办工具，而是一个�
 
 > **全程本机运行（非线上环境）**：数据默认只存本机（SQLite 单文件 + 本地附件目录），不需要任何在线服务、账号或云数据库；
 > 云端 AI 完全可选、默认关闭——**无 AI 模式即完整可用**。
+>
+> **三种使用形态**：① **静态网页**（浏览器直接开）· ② **桌面应用**（Windows 双击即用，内嵌后端与页面，无需任何环境）· ③ **安卓 APK**（手机上连接电脑使用）。
 
 ## 功能总览
 
@@ -171,13 +173,56 @@ docker compose up --build
 
 > 本机无 Docker（且 Docker Hub 不可达），此方式**未实测**，仅供有 Docker 的机器参考。
 
-### 6. 验证安装（本机自检）
+### 6. 桌面应用（Windows 双击即用）
+
+把「内置后端 + 静态前端 + 原生窗口」打包成一个绿色文件夹——**使用者不需要 Python / Node / Docker**：
 
 ```powershell
-# ① 后端测试（78 个用例）
+# 构建（需要 Node / uv / Python 3.12+；在仓库根目录执行）
+powershell -ExecutionPolicy Bypass -File desktop\build.ps1
+# 产物：desktop\dist\CausaLab\CausaLab.exe（整个 CausaLab 文件夹可整体拷到任意位置）
+
+# 开发态直接运行（不打包）
+cd backend
+uv run --group desktop python ..\desktop\shell.py
+```
+
+- 双击 `CausaLab.exe`：自动在 `127.0.0.1` 起内置后端并打开窗口（关窗即退出，无残留进程）；
+- **数据在 exe 同级的 `data\`**（便携式：整个文件夹拷走，数据跟着走）；日志：`data\desktop.log`；
+- 附件打开与 JSON/CSV 导出交给系统默认浏览器处理（窗口内下载不可靠）；
+- 自检：`CausaLab.exe --smoke`（退出码 0 = 通过）；更多见 `desktop\README.md`。
+
+### 7. 安卓 APK（手机连接电脑使用）
+
+手机上的 CausaLab 是一个 WebView 客户端——页面与数据来自你电脑上运行的 CausaLab，**需在同一局域网**：
+
+```powershell
+# 构建（需要 Flutter + JDK 17 + Android SDK；本机工具链环境变量示例）
+$env:JAVA_HOME = "D:\jdk17"
+$env:ANDROID_HOME = "D:\Android\Sdk"
+$env:GRADLE_USER_HOME = "D:\gradle-home"
+cd mobile
+flutter build apk --release
+# 产物：mobile\build\app\outputs\flutter-apk\app-release.apk（拷到手机安装即可）
+
+# 电脑端（让手机能访问）：后端监听局域网地址
+cd backend
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+# 首次可能需要在（管理员）PowerShell 放行防火墙入站：
+#   New-NetFirewallRule -DisplayName "CausaLab LAN" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow -Profile Private
+```
+
+- 手机首次打开填写 `http://<电脑IP>:8000`（电脑 IP 用 `ipconfig` 查询）；电脑端先执行过一次 `npm run build:static`（静态页面形态），或改填开发地址 `http://<电脑IP>:3000`；
+- 手机与电脑连接同一个 Wi-Fi；**建议**：把 CausaLab 暴露到局域网时启用「设置 → 安全」密码保护；
+- 说明：仅含 Android 平台；release 包采用 Flutter 模板默认的 debug 签名（可直接侧载，上架商店需自配签名）；更多见 `mobile\README.md`。
+
+### 8. 验证安装（本机自检）
+
+```powershell
+# ① 后端测试（79 个用例）
 cd backend ; uv run pytest -q
 
-# ② 前端测试（24 个用例）
+# ② 前端测试（26 个用例）
 cd frontend ; npx vitest run
 
 # ③ 端到端测试（Playwright + 系统 Edge；自动拉起隔离前后端 :8010/:3100）
@@ -190,6 +235,9 @@ cd backend ; uv run python scripts/smoke_no_ai.py
 
 # ⑤ 静态产物构建自查
 cd frontend ; npm run build:static
+
+# ⑥ 桌面版自检（先按「6. 桌面应用」打包）
+desktop\dist\CausaLab\CausaLab.exe --smoke
 ```
 
 **手工验收清单（浏览器，2 分钟）**：
@@ -243,11 +291,16 @@ cd frontend ; npm run build:static
     - 异地托管：确认页面 `config.js` 的 `window.__CAUSALAB_API_BASE__` 指向正确的后端地址，且后端 `CAUSALAB_CORS_ORIGINS` 包含页面来源。
 15. **直接输入详情页链接报 404**：静态服务器需要支持「目录索引」（把 `/dtm/detail/` 映射到 `index.html`）；FastAPI 同源托管已内置该行为。
 
+### 桌面版 / 安卓版
+
+16. **桌面版的数据存在哪里、如何迁移**：`CausaLab.exe` 同级的 `data\` 目录（便携式：把整个 CausaLab 文件夹拷到别处，数据跟着走）；运行日志在同目录 `desktop.log`。开发态数据在 `desktop\.data\`。
+17. **APK 连不上电脑**：按序检查——① 手机与电脑连接同一 Wi-Fi；② 电脑端后端用 `--host 0.0.0.0` 启动（默认只监听本机 127.0.0.1，手机访问不到）；③ Windows 防火墙放行 8000 入站（命令见「7. 安卓 APK」一节）；④ 地址格式 `http://<电脑IP>:8000`（`ipconfig` 查询 IPv4）。暴露到局域网后**建议启用密码保护**。
+
 ### 其他
 
-16. **macOS / Linux**：不使用 `.bat`，按「方式 B」手动启动即可，其余命令相同。
-17. **完全离线可用吗**：依赖安装完成后，除「云端 AI」外的全部功能离线可用；不配置 AI 即为完全离线。
-18. **如何更新代码**：`git pull` 后执行 `uv sync` 与 `npm ci`；启动时数据库迁移会自动升级。
+18. **macOS / Linux**：不使用 `.bat` 与桌面版打包脚本（均 Windows 专属），按「方式 B」手动启动即可，其余命令相同。
+19. **完全离线可用吗**：依赖安装完成后，除「云端 AI」外的全部功能离线可用；不配置 AI 即为完全离线。
+20. **如何更新代码**：`git pull` 后执行 `uv sync` 与 `npm ci`；启动时数据库迁移会自动升级。
 
 ## 无 AI 模式（默认）
 
@@ -292,7 +345,7 @@ cd frontend ; npm run build:static
 | GitHub Actions CI 真跑 | ⚠️ 未在本机验证（`act` 需要 Docker）；workflow 按官方 Action 语法编写 |
 | Playwright Chromium（CI） | ⚠️ 本机使用系统 Edge（channel: `msedge`）验证通过；CI 的 Chromium 路径未实跑 |
 
-已在本机充分验证：pytest **78** 用例、Vitest **24** 用例、`next build`、`npm run build:static`（静态导出产物 + uvicorn 同源托管的浏览器全流程）、Playwright E2E（Edge，**10** 个场景）、无 AI 全链路冒烟 **24/24**、Alembic 迁移（SQLite）、附件上传端到端（含真实文件选择与删除）、ruff、mypy、tsc、eslint。
+已在本机充分验证：pytest **79** 用例、Vitest **26** 用例、`next build`、`npm run build:static`（静态导出产物 + uvicorn 同源托管的浏览器全流程）、**桌面版**（PyInstaller 打包成功、开发态/打包版双冒烟、真实窗口启动）、**安卓 APK**（release 构建成功、aapt2 包体校验）、Playwright E2E（Edge，**10** 个场景）、无 AI 全链路冒烟 **24/24**、Alembic 迁移（SQLite）、附件上传端到端（含真实文件选择与删除）、ruff、mypy、tsc、eslint。
 
 完整进度与未解决问题清单见 [PROGRESS.md](docs/PROGRESS.md)。
 
@@ -318,7 +371,9 @@ CausalLab/
 │   ├── src/lib/            # API 客户端（含 428 确认闸门、静态托管基址解析）、hooks、i18n（zh 完整/en 预留）
 │   ├── scripts/build-static.mjs  # 静态导出（npm run build:static → out/）
 │   ├── e2e/                # Playwright（Edge）10 个核心场景
-│   └── tests/              # Vitest 单测（24 个）
+│   └── tests/              # Vitest 单测（26 个）
+├── desktop/                # 桌面应用（Windows）：pywebview 壳 + PyInstaller 打包，双击即用
+├── mobile/                 # 安卓 APK：Flutter WebView 客户端（连接电脑使用）
 ├── docker-compose.yml      # 未在本机验证
 └── .github/workflows/ci.yml
 ```

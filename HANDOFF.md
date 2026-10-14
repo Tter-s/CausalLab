@@ -2,7 +2,7 @@
 
 > **用途**：在新对话/新会话中快速恢复对 CausaLab 的完整上下文。读完本文件即可继续开发；
 > 细节查 `docs/ARCHITECTURE.md`（设计决策）、`docs/API.md`（接口）、`docs/PROGRESS.md`（进度与遗留）、`README.md`（功能与用法）。
-> **最后更新：2026-10-14（第十一次迭代后）**
+> **最后更新：2026-10-14（第十二次迭代后）**
 
 ---
 
@@ -18,12 +18,12 @@
 
 | 项 | 值 |
 |---|---|
-| 本文件描述的状态 | 写作时刚完成「静态网页分发」迭代（见 §10）。**实际当前值请用** `git log -1 --oneline` / `git status` 查（文档不追实时状态） |
+| 本文件描述的状态 | 写作时刚完成「桌面应用 + 安卓 APK」迭代（见 §10），三大分发形态齐备。**实际当前值请用** `git log -1 --oneline` / `git status` 查（文档不追实时状态） |
 | 远端 | `https://github.com/Tter-s/CausalLab`（本次上传后 `origin/main` 已同步） |
 | **推送状态** | 已推送。本次上传后 `origin/main` 与本地 `main` 同步（普通推送，无历史重写） |
 | 工作区 | 干净，无未跟踪文件 |
 | 服务 | 不随仓库启动，需手动拉起（见 §5）。是否在跑用 `Get-NetTCPConnection -LocalPort 8000,3000 -State Listen` 查 |
-| 实测基线 | pytest **78/78** · Vitest **24/24** · E2E **10/10** · 无 AI 冒烟 **24/24** · ruff/mypy/tsc 全绿 · eslint **0 error**（11 warning，均为已声明的 `set-state-in-effect`） · `next build` 12 条业务路由 · **`npm run build:static` 静态导出成功（产物 `frontend/out/`，经 uvicorn 同源托管浏览器实测 8 项通过）** |
+| 实测基线 | pytest **79/79** · Vitest **26/26** · E2E **10/10** · 无 AI 冒烟 **24/24** · ruff/mypy/tsc 全绿 · eslint **0 error**（11 warning，均为已声明的 `set-state-in-effect`） · `next build` 12 条业务路由 · **`npm run build:static` 静态导出成功** · **桌面版 PyInstaller 打包成功（68 MB，dev/frozen 双冒烟 + 窗口启动通过）** · **安卓 APK release 构建成功（45.7 MB）** |
 | 数据库 | 37 张业务表（+ `alembic_version`），迁移 head = `b69c58233d86` |
 | API | 99 条路径 / 134 个操作；`docs/API.md` 与之 **134/134 精确对齐** |
 | AI 配置 | provider=deepseek（真实 Key 已配置；Key 加密存本机，不进仓库/文档），`auto_confirm_send=false`（隐私闸门开启，推荐值） |
@@ -34,7 +34,8 @@
 |---|---|
 | 后端 | Python **3.14.7**（锁死，见 §6）+ FastAPI 0.143 + SQLAlchemy 2.1.4 + Alembic 1.20 + SQLite（可切 PG）+ py-fsrs 6.3.2（官方库，MIT）+ bcrypt 5 + cryptography 50（Fernet）+ psycopg 3.3.6（PG 驱动） |
 | 前端 | Next.js **16.4.0**（App Router，纯客户端取数）+ React 19.3 + Tailwind v4 + Radix（shadcn 风格手写组件）+ Recharts + @xyflow/react + next-themes + sonner |
-| 测试 | pytest（后端 78）/ Vitest（前端 24）/ Playwright（E2E 10，复用系统 Edge，不下载浏览器） |
+| 测试 | pytest（后端 79）/ Vitest（前端 26）/ Playwright（E2E 10，复用系统 Edge，不下载浏览器） |
+| 桌面/移动 | 桌面：pywebview 6.2.1 + pythonnet 3.2.1 + PyInstaller 6.22.3（可选依赖组 `desktop`）；安卓：Flutter 3.44.9（`mobile/`，WebView 客户端）· JDK 17 · Android SDK |
 | 工具 | uv 0.12.13 · Node v24.21.0 · npm 11.19 · git 2.56.0 |
 | 取数模式 | 开发态：前端统一相对路径 `/api/*`，由 Next rewrites 代理到 FastAPI `127.0.0.1:8000`（免 CORS）。静态态：`apiUrl()` 基址解析（`window.__CAUSALAB_API_BASE__` → `NEXT_PUBLIC_API_BASE` → 相对路径），同源托管时行为不变（见 §7.10） |
 
@@ -57,20 +58,22 @@ CausalLab/
 │   ├── alembic/        # 5 个迁移（初始 schema / auth_sessions / events 索引 / recall_ms / attachments）
 │   ├── alembic.ini     # 必须保持纯 ASCII（见 §9 Alembic 条）
 │   ├── scripts/smoke_no_ai.py   # 无 AI 全链路冒烟（24 项；默认对 8000，可用 CAUSALAB_SMOKE_BASE 换端口）
-│   └── tests/          # 78 用例（含 test_uploads.py 14 个附件用例 + test_static.py 3 个静态托管用例）
-└── frontend/
-    ├── .dockerignore / Dockerfile          # 均未在本机验证
-    ├── AGENTS.md         # Next 自动生成并重写（被跟踪，见 §9）
-    ├── src/app/          # 12 路由：/ /kd /ml /dtm /dtm/detail /ta /ta/detail /timeline
-    │                     #        /hypotheses /loops /settings /login
-    │                     # 详情页为查询参数路由（/dtm/detail?id=N、/ta/detail?id=N），兼容静态导出
-    ├── src/components/   # layout/(app-shell+shared) ui/(手写 shadcn 风格组件) brand-mark
-    │                     # dev-tools-zh（仅 dev：汉化+拖拽 Next Dev Tools）
-    ├── src/lib/          # api.ts(428/401 处理 + postForm 附件上传 + apiUrl 基址解析) useApi.ts
-    │                     # i18n.tsx(双语) i18n-page-strings.ts ai-client.tsx(428 确认流) format.ts types.ts
-    ├── scripts/build-static.mjs  # 静态导出（npm run build:static，跨平台，产物 out/）
-    ├── e2e/flows.spec.ts # 10 个场景（含认证、附件上传、按任务模型保存）
-    └── tests/            # Vitest 24（含 i18n 覆盖扫描防退化测试 + 基址解析用例）
+│   └── tests/          # 79 用例（含 test_uploads.py 14 个附件用例 + test_static.py 3 个静态托管用例）
+├── frontend/
+│   ├── .dockerignore / Dockerfile          # 均未在本机验证
+│   ├── AGENTS.md         # Next 自动生成并重写（被跟踪，见 §9）
+│   ├── src/app/          # 12 路由：/ /kd /ml /dtm /dtm/detail /ta /ta/detail /timeline
+│   │                     #        /hypotheses /loops /settings /login
+│   │                     # 详情页为查询参数路由（/dtm/detail?id=N、/ta/detail?id=N），兼容静态导出
+│   ├── src/components/   # layout/(app-shell+shared) ui/(手写 shadcn 风格组件) brand-mark
+│   │                     # dev-tools-zh（仅 dev：汉化+拖拽 Next Dev Tools）
+│   ├── src/lib/          # api.ts(428/401 处理 + postForm + apiUrl 基址 + isDesktopShell/openExternal) useApi.ts
+│   │                     # i18n.tsx(双语) i18n-page-strings.ts ai-client.tsx(428 确认流) format.ts types.ts
+│   ├── scripts/build-static.mjs  # 静态导出（npm run build:static，跨平台，产物 out/）
+│   ├── e2e/flows.spec.ts # 10 个场景（含认证、附件上传、按任务模型保存）
+│   └── tests/            # Vitest 26（含 i18n 覆盖扫描 + 基址解析 + 桌面桥接用例）
+├── desktop/              # 桌面应用（Windows）：shell.py（pywebview 壳）+ CausaLab.spec + build.ps1
+└── mobile/               # 安卓 APK：Flutter WebView 客户端（lib/main.dart + android/…）
 ```
 
 ## 5. 启动 / 测试（Windows）
@@ -85,6 +88,15 @@ cd frontend ; npm run dev                                 # http://localhost:300
 cd frontend ; npm run build:static                        # 静态导出 → frontend/out/（纯静态文件）
 cd backend  ; uv run uvicorn app.main:app --port 8000     # 同源托管：http://127.0.0.1:8000/ 即完整应用
 #   （后端在所有 API 路由后自动挂载 frontend/out/；CAUSALAB_STATIC_DIR 可指向别处的静态目录）
+
+# 桌面版（§7.11）：打包与自检
+powershell -ExecutionPolicy Bypass -File desktop\build.ps1   # 产物 desktop\dist\CausaLab\CausaLab.exe（68 MB）
+desktop\dist\CausaLab\CausaLab.exe --smoke                   # 打包版自检（退出码 0 = 通过）
+
+# 安卓 APK（§7.11）：构建（需 JDK 17 + Android SDK + Flutter；环境变量示例）
+$env:JAVA_HOME="D:\jdk17"; $env:ANDROID_HOME="D:\Android\Sdk"; $env:GRADLE_USER_HOME="D:\gradle-home"
+$env:PUB_CACHE="D:\pub-cache"; $env:PUB_HOSTED_URL="https://pub.flutter-io.cn"
+cd mobile ; flutter build apk --release                      # 产物 ...\flutter-apk\app-release.apk（45.7 MB）
 
 # 回归全套（改动后必跑）——后端
 cd backend  ; uv run pytest -q ; uv run ruff check app tests ; uv run mypy app
@@ -137,6 +149,7 @@ cd backend  ; uv run python scripts/smoke_no_ai.py       # 无 AI 冒烟（需 8
 8. **数据获取模式**：页面全用自研 `useApi` hook；`ai-client.tsx` 的 `useAICall` 处理 428→预览→确认重发。刻意整页跳转（登出/演示/清空后）有 eslint 豁免注释——不要改成软导航。
 9. **AI 配置的 None 语义**：`AIConfigIn` 中 `api_key` 与 `task_models` 都是「None/省略 = 保持原值」。**不要写成无条件覆盖**，否则任何只提交部分字段的客户端都会清空用户已存的配置（这个 bug 真出现过）。
 10. **静态分发形态（第十一次迭代新增）**：`npm run build:static` 产出 `frontend/out/`（`STATIC_EXPORT=1` → `output: "export"` + `trailingSlash: true`，该模式下**不注册 rewrites**）；FastAPI 在所有 API 路由**之后**挂 `StaticFiles(html=True)` 同源托管（默认 `frontend/out/`，`CAUSALAB_STATIC_DIR` 可覆盖，目录/index.html 缺失则跳过并记日志）。API 基址解析在 `api.ts`：`window.__CAUSALAB_API_BASE__`（运行期）→ `NEXT_PUBLIC_API_BASE`（构建期）→ 相对路径（默认）。**所有新代码访问 API 必须走 `api()` / `apiUrl()`，不要裸写 `/api/...`**，否则异地托管（静态页与后端不同源）场景断链。详情页一律查询参数路由（`/dtm/detail?id=N`、`/ta/detail?id=N`）。
+11. **三大分发形态（第十二次迭代齐备）**：① 静态网页（浏览器 / 静态托管）；② **桌面应用**（`desktop/shell.py`：内嵌 uvicorn 随机端口 + pywebview/WebView2 窗口；打包态数据在 exe 同级 `data/`、开发态 `desktop/.data/`；PyInstaller onedir 把静态前端打进 `_internal/web`、alembic 打进 `_internal/alembic`——`BASE_DIR` 在 frozen 下即 `_internal`，所以这两个目录名**不能改**）；③ **安卓 APK**（`mobile/` Flutter WebView 客户端：**页面由电脑端后端提供**，手机只负责渲染，所以页面形态（静态托管/开发服务）都在电脑端控制；客户端只保存一个服务器地址）。桌面壳内的外链/下载统一走前端 `openExternal()`（检测 `window.pywebview`）→ 系统浏览器；后端 `/api/data/export?download=1` 提供 `Content-Disposition` 文件名。**手机访问必须以 `uvicorn --host 0.0.0.0` 启动后端并放行防火墙入站。**
 
 ## 8. 未在本机验证的项（**严禁写成"通过"**，任务书 §11.6）
 
@@ -151,6 +164,8 @@ cd backend  ; uv run python scripts/smoke_no_ai.py       # 无 AI 冒烟（需 8
 | CI 的 Playwright Chromium 路径 | ⚠️ 未验证 | 本机只有 Edge，E2E 走 `msedge` |
 | Firefox / WebKit | ⚠️ 未验证 | 本机未安装对应浏览器 |
 | HuggingFace 下载 | ➖ 不涉及 | 产品明确不做本地模型部署 |
+| 安卓 APK 真机安装与局域网连调 | ⚠️ 未验证 | 本机无 Android 设备/模拟器；APK 构建与包体校验（aapt2）已通过 |
+| 桌面版窗口内的完整手工点选流程 | ⚠️ 部分验证 | 窗口启动、页面加载、双冒烟（含迁移链）已验证；完整交互建议按 `desktop/README.md` 手动过一遍 |
 
 **注意**：这是**部署形态**的缺口，不是**产品功能**的缺口——应用在 SQLite 上功能完整、全部测试通过。
 `README.md` 与 `docs/PROGRESS.md` 里有一份对应的用户可读版本，改完必须同步。
@@ -175,18 +190,19 @@ cd backend  ; uv run python scripts/smoke_no_ai.py       # 无 AI 冒烟（需 8
 - **测试隔离**：pytest 共享一个临时库（conftest 设 `CAUSALAB_DATA_DIR`）；写测试注意跨用例状态污染（AI 配置、限流器、会话 cookie 都有前车之鉴）；E2E `beforeEach` 会先关认证 + 清业务数据。
 - **静态导出的三个坑**（第十一次迭代踩过）：① `output: "export"` 与 `rewrites` 不兼容——静态模式直接不注册代理（见 `next.config.ts` 的 `STATIC_EXPORT` 分支）；② 动态段路由（`[id]`）无法在构建期枚举运行期 id，静态导出必然失败——详情页改查询参数即解；③ `useSearchParams` 必须包 Suspense（两详情页已包，预渲染输出为骨架屏，数据客户端加载）。另：Starlette `StaticFiles(html=True)` 对**不带尾斜杠**的目录路径返回 307 跳到带斜杠版本，**查询参数原样保留**，浏览器与 curl -L 均无感。
 - **静态托管验证别忘同源性**：改动 `api.ts` 基址逻辑后，跑 `npm run build:static` + uvicorn（挂载 `out/`）在浏览器实际点一遍；只跑 dev/E2E 验证不到静态链路（dev 走的是 Next 代理）。
+- **gradle wrapper 官方下载链不可达**（第十二次迭代踩过）：`distributionUrl` 官方地址会 302 到 `github.com/gradle/gradle-distributions` 的 release 资产，本机网络不稳 → 首次 `flutter build apk` 直接失败。已改用**华为云镜像**（`mobile/android/gradle/wrapper/gradle-wrapper.properties`，文件内附注释）。排查技巧：wrapper 缓存目录 `%GRADLE_USER_HOME%\wrapper\dists\<版本>\<hash>` 的 **hash = Base36(MD5(完整 URL 字符串))**——换 URL 会换 hash，可用 Python 反推某个缓存目录对应的是哪个 URL。
+- **PyInstaller 冻结桌面版的三个要点**：① 无控制台（`console=False`）→ 一切诊断写 `<数据目录>/desktop.log`，`--smoke` 用**退出码**反映结果；② `alembic/` 与 `alembic.ini` 必须以 datas 打进 `_internal` 根（`BASE_DIR` 解析即 `_internal`），否则迁移静默回退 create_all；③ uvicorn 的动态导入（`loops.auto` / `protocols.*.auto` / `lifespan.on`）要写进 hiddenimports，webview/pythonnet/clr_loader 用 `collect_all` 连同 JS 资源一起收。
+- **手机（APK）连不上电脑**的三个常见原因：后端仍绑在 127.0.0.1（要 `--host 0.0.0.0`）、Windows 防火墙未放行 8000 入站、手机与电脑不在同一局域网。另注意：后端暴露到局域网后建议启用密码保护。
 
-## 10. 最近一次迭代（第十一次）改了什么
+## 10. 最近一次迭代（第十二次）改了什么
 
-**静态网页分发**——为绕开「本机无法使用 Docker」的限制，新增完全不依赖 Docker 的运行形态（修复两个挡路 Bug 后完成静态构建）：
+**桌面应用 + 安卓 APK**——在「静态网页」之外补齐另外两大分发形态（使用者视角的三种启动方式：静态网页 / 桌面应用 / 安卓 APK）：
 
-- **Bug 1（解除 API 通道对 Next 代理的硬依赖）**：`api.ts` 新增 `apiBase()`/`apiUrl()`（`window.__CAUSALAB_API_BASE__` → `NEXT_PUBLIC_API_BASE` → 相对路径）；`api()`、`postForm()` 及 4 处裸调用（登录 / CSV 导出 / 任务事件轮询 / 附件打开）统一收口；`next.config.ts` 增加 `STATIC_EXPORT=1` 分支
-- **Bug 2（详情页无法静态导出）**：`/dtm/[id]`→`/dtm/detail?id=N`、`/ta/[id]`→`/ta/detail?id=N`（`useParams`→`useSearchParams`），9 处链接构造同步更新，空 id 有明确报错态（已补英文翻译）
-- **新增能力**：`npm run build:static`（`scripts/build-static.mjs`，零新依赖）产出 `frontend/out/`；FastAPI 同源托管（`app/main.py` 在所有 API 路由后挂 `StaticFiles`，`CAUSALAB_STATIC_DIR` 可覆盖）；异地托管可选（`CAUSALAB_CORS_ORIGINS` + 页面 `config.js` 注入基址）
-- **测试**：`tests/test_static.py` 3 例 + 基址解析 4 例；冒烟脚本支持 `CAUSALAB_SMOKE_BASE`（8000 被占用时对隔离实例执行）
-- **本机验证**：pytest **78**、Vitest **24**、E2E **10**、冒烟 **24/24**、ruff/mypy/tsc/eslint 全绿、`npm run build:static` 成功、经 uvicorn 同源托管的浏览器全流程 **8 项通过**
-
-**未在本轮实施**：桌面端 App（pywebview + PyInstaller）——选型已探测确认可行，列为下一步（见 `docs/PROGRESS.md` §6）。
+- **桌面应用（`desktop/`）**：`shell.py` 内嵌 uvicorn（127.0.0.1 随机端口）+ WebView2 窗口；数据便携化（exe 同级 `data/`）；`--smoke` 自检；前端新增桌面桥接 `isDesktopShell()/openExternal()`（附件打开、JSON/CSV 导出改走系统浏览器）；后端 `?download=1` 导出头；`build.ps1` 一键 PyInstaller onedir 打包（68 MB）；依赖组 `desktop`（pywebview/pythonnet/pyinstaller）
+- **安卓 APK（`mobile/`）**：Flutter 3.44.9 WebView 客户端——服务器地址配置页 + 全屏 WebView（刷新/改地址/返回键处理/错误重试）；INTERNET + 明文 HTTP；release 构建 45.7 MB（debug 签名可侧载）
+- **构建修复**：gradle wrapper 改华为云镜像（官方链重定向到 GitHub 资产不可达）
+- **本机验证**：pytest **79**、Vitest **26**、E2E **10**、冒烟 **24/24**、ruff/mypy/tsc/eslint 全绿；桌面版开发态/打包版冒烟 + 真实窗口启动均通过；APK aapt2 校验通过
+- **未验证**：APK 真机安装与连调（本机无设备/模拟器，见 §8）
 
 完整的逐条记录见 `docs/PROGRESS.md` §5「迭代记录」。
 
