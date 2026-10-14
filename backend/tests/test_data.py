@@ -2,6 +2,15 @@
 from __future__ import annotations
 
 
+def test_export_download_disposition(client):
+    """桌面版导出：?download=1 带上 Content-Disposition（浏览器直接下载而非内联显示）。"""
+    r = client.get("/api/data/export", params={"download": "1"})
+    assert r.status_code == 200
+    cd = r.headers.get("content-disposition", "")
+    assert "attachment" in cd and "causalab-export-" in cd
+    assert r.json()["app"] == "CausaLab"
+
+
 def test_export_import_roundtrip(client):
     # 造一点数据
     s = client.post("/api/kd/subjects", json={"name": "导出测试学科"}).json()

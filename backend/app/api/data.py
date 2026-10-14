@@ -108,7 +108,7 @@ def _row_to_dict(obj: Any) -> dict:
 
 
 @router.get("/export")
-def export_all(db: Session = Depends(get_db)):
+def export_all(download: bool = False, db: Session = Depends(get_db)):
     data = {
         "schema_version": 1,
         "exported_at": utcnow().isoformat(),
@@ -120,6 +120,12 @@ def export_all(db: Session = Depends(get_db)):
         rows: list[Any] = list(db.scalars(select(model)))
         tables_out[name] = [_row_to_dict(r) for r in rows]
     data["tables"] = tables_out
+    if download:
+        # 桌面版导出：由系统浏览器直接下载（带文件名，避免内联显示 JSON）
+        from fastapi.responses import JSONResponse
+
+        filename = f"causalab-export-{date.today().isoformat()}.json"
+        return JSONResponse(content=data, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     return data
 
 

@@ -515,6 +515,7 @@ export const enPageStrings: Record<string, string> = {
   "连接成功：{p}，{ms}ms": "Connected: {p}, {ms}ms",
   "连接失败：{e}": "Connection failed: {e}",
   "导出完成": "Export complete",
+  "已交给系统浏览器下载": "Download started in your system browser",
   "导入完成（全量替换）": "Import complete (full replace)",
   "导入失败：文件格式不正确": "Import failed: invalid file format",
   "provider.none": "No AI (default — everything works)",

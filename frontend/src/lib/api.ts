@@ -39,6 +39,8 @@ declare global {
   interface Window {
     /** 静态托管场景的运行期注入（由部署方放一个 config.js 设置），优先于构建期配置。 */
     __CAUSALAB_API_BASE__?: string;
+    /** 桌面壳（pywebview）注入的 JS 桥：存在即表示运行在桌面版窗口内。 */
+    pywebview?: { api?: { open_external?: (url: string) => Promise<unknown> } };
   }
 }
 
@@ -62,6 +64,24 @@ export function apiBase(): string {
 export function apiUrl(path: string): string {
   const base = apiBase();
   return base ? `${base}/api${path}` : `/api${path}`;
+}
+
+/** 是否运行在桌面版窗口（pywebview 壳）内——壳会注入 window.pywebview.api。 */
+export function isDesktopShell(): boolean {
+  return typeof window !== "undefined" && Boolean(window.pywebview?.api?.open_external);
+}
+
+/**
+ * 打开外部链接 / 触发下载：
+ * 桌面壳内交给系统浏览器（webview 内 window.open 与 blob 下载不可靠）；
+ * 普通浏览器维持原 window.open 行为。
+ */
+export function openExternal(url: string): void {
+  if (isDesktopShell()) {
+    void window.pywebview?.api?.open_external?.(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener");
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {

@@ -23,7 +23,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { apiUrl, del, getWith, patch, post, postForm } from "@/lib/api";
+import { apiUrl, del, getWith, openExternal, patch, post, postForm } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useAICall } from "@/lib/ai-client";
 import { useL, useT } from "@/lib/i18n";
@@ -797,7 +797,7 @@ function TopicAttachments({ topicId }: { topicId: number }) {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => window.open(apiUrl(`/uploads/${a.id}/content`), "_blank", "noopener")}
+              onClick={() => openExternal(apiUrl(`/uploads/${a.id}/content`))}
             >
               <ExternalLink /> {t("打开")}
             </Button>

@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { apiUrl, del, get, post, put } from "@/lib/api";
+import { apiUrl, del, get, isDesktopShell, openExternal, post, put } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useTheme } from "next-themes";
 import { fmtDateTime } from "@/lib/format";
@@ -180,6 +180,12 @@ export default function SettingsPage() {
   };
 
   const exportAll = async () => {
+    if (isDesktopShell()) {
+      // 桌面壳：交给系统浏览器下载（`?download=1` 让后端带 Content-Disposition，避免浏览器内联显示）
+      openExternal(apiUrl("/data/export?download=1"));
+      toast.success(t("已交给系统浏览器下载"));
+      return;
+    }
     const data = await get<Record<string, unknown>>("/data/export");
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -203,6 +209,11 @@ export default function SettingsPage() {
   };
 
   const exportCsv = async (path: string, name: string) => {
+    if (isDesktopShell()) {
+      // 桌面壳：text/csv 由系统浏览器直接下载，无需 blob 中转
+      openExternal(apiUrl(path));
+      return;
+    }
     const res = await fetch(apiUrl(path));
     const text = await res.text();
     const blob = new Blob(["\ufeff" + text], { type: "text/csv" });

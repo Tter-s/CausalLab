@@ -138,4 +138,28 @@ describe("api client", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("http://host:99/api/dashboard");
     vi.unstubAllGlobals();
   });
+
+  // ---- 桌面壳（pywebview）桥接 ----
+  it("isDesktopShell 仅在 pywebview 桥存在时为 true", async () => {
+    const { isDesktopShell } = await import("@/lib/api");
+    expect(isDesktopShell()).toBe(false);
+    vi.stubGlobal("window", { pywebview: { api: { open_external: vi.fn() } } });
+    expect(isDesktopShell()).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it("openExternal：桌面壳内走 pywebview 桥，浏览器内退回 window.open", async () => {
+    const { openExternal } = await import("@/lib/api");
+    const bridge = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal("window", { pywebview: { api: { open_external: bridge } } });
+    openExternal("http://example.com/x");
+    expect(bridge).toHaveBeenCalledWith("http://example.com/x");
+    vi.unstubAllGlobals();
+
+    const openMock = vi.fn();
+    vi.stubGlobal("window", { open: openMock });
+    openExternal("http://example.com/y");
+    expect(openMock).toHaveBeenCalledWith("http://example.com/y", "_blank", "noopener");
+    vi.unstubAllGlobals();
+  });
 });
