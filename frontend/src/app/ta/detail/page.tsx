@@ -1,8 +1,9 @@
 "use client";
-/** 项目详情：任务管理、过程事件、计划-实际统计、复盘报告（规则/AI）。 */
+/** 项目详情：任务管理、过程事件、计划-实际统计、复盘报告（规则/AI）。
+ *  路由为查询参数形式（/ta/detail?id=8），兼容静态导出（动态段 [id] 无法在构建期枚举）。 */
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Bar,
@@ -22,7 +23,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { patch, post } from "@/lib/api";
+import { apiUrl, patch, post } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useAICall } from "@/lib/ai-client";
 import { useL, useT } from "@/lib/i18n";
@@ -32,12 +33,12 @@ import type { ProjectReviewItem, ProjectStats, TaskEventItem, TaskItem } from "@
 function ProjectDetailPageInner() {
   const t = useT();
   const L = useL();
-  const params = useParams<{ id: string }>();
-  const id = params.id;
-  const project = useApi<{ id: number; name: string; description: string; status: string }>(`/ta/projects/${id}`);
-  const tasks = useApi<TaskItem[]>(`/ta/projects/${id}/tasks`);
-  const stats = useApi<ProjectStats>(`/ta/projects/${id}/stats`);
-  const reviews = useApi<ProjectReviewItem[]>(`/ta/projects/${id}/reviews`);
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") ?? "";
+  const project = useApi<{ id: number; name: string; description: string; status: string }>(id ? `/ta/projects/${id}` : null);
+  const tasks = useApi<TaskItem[]>(id ? `/ta/projects/${id}/tasks` : null);
+  const stats = useApi<ProjectStats>(id ? `/ta/projects/${id}/stats` : null);
+  const reviews = useApi<ProjectReviewItem[]>(id ? `/ta/projects/${id}/reviews` : null);
   const ai = useAICall();
 
   const [taskOpen, setTaskOpen] = React.useState(false);
@@ -96,6 +97,7 @@ function ProjectDetailPageInner() {
     });
   };
 
+  if (!id) return <ErrorState error={new Error(t("链接缺少 id 参数：请从项目列表进入详情页。"))} />;
   if (project.loading && !project.data) return <LoadingBlock rows={5} />;
   if (project.error) return <ErrorState error={project.error} onRetry={project.refresh} />;
   const p = project.data;
@@ -282,7 +284,7 @@ function TaskEventsInline({ taskId, refreshKey }: { taskId: number; refreshKey: 
   const L = useL();
   const [events, setEvents] = React.useState<TaskEventItem[]>([]);
   React.useEffect(() => {
-    void fetch(`/api/ta/tasks/${taskId}/events`)
+    void fetch(apiUrl(`/ta/tasks/${taskId}/events`))
       .then((r) => r.json())
       .then(setEvents)
       .catch(() => setEvents([]));

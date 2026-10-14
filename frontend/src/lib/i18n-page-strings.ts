@@ -600,4 +600,7 @@ export const enPageStrings: Record<string, string> = {
   "实验设计": "Experiment design",
   "循环复盘": "Loop review",
   "通用": "General",
+  // ---- 详情页（查询参数路由）空 id 守卫 ----
+  "链接缺少 id 参数：请从决策列表进入详情页。": "Missing id parameter: open this detail page from the decisions list.",
+  "链接缺少 id 参数：请从项目列表进入详情页。": "Missing id parameter: open this detail page from the projects list.",
 };

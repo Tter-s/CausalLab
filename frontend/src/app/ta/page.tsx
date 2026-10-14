@@ -50,7 +50,7 @@ export default function TAPage() {
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {list.map((p) => (
-            <Link key={p.id} href={`/ta/${p.id}`}>
+            <Link key={p.id} href={`/ta/detail?id=${p.id}`}>
               <Card className="h-full transition-shadow hover:shadow-md">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">

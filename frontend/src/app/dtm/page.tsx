@@ -89,7 +89,7 @@ export default function DTMPage() {
               {list.map((d) => {
                 const due = d.status === "open" && d.review_at && new Date(d.review_at) <= new Date();
                 return (
-                  <Link key={d.id} href={`/dtm/${d.id}`}>
+                  <Link key={d.id} href={`/dtm/detail?id=${d.id}`}>
                     <Card className="h-full transition-shadow hover:shadow-md">
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between gap-2">

@@ -151,9 +151,9 @@ function moduleHref(module: string, refType: string, refId: number): string {
     case "ml":
       return "/ml";
     case "dtm":
-      return `/dtm/${refId}`;
+      return `/dtm/detail?id=${refId}`;
     case "ta":
-      return refType === "task" ? "/ta" : `/ta/${refId}`;
+      return refType === "task" ? "/ta" : `/ta/detail?id=${refId}`;
     case "hyp":
       return "/hypotheses";
     case "loop":

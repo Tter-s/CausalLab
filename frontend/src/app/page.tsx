@@ -32,9 +32,9 @@ const MODULE_COLORS: Record<string, string> = {
 };
 
 function eventHref(module: string, refType: string, refId: number): string {
-  if (module === "dtm") return `/dtm/${refId}`;
+  if (module === "dtm") return `/dtm/detail?id=${refId}`;
   if (module === "kd") return `/kd?topic=${refId}`;
-  if (module === "ta") return refType === "project" ? `/ta/${refId}` : "/ta";
+  if (module === "ta") return refType === "project" ? `/ta/detail?id=${refId}` : "/ta";
   if (module === "ml") return "/ml";
   if (module === "hyp") return "/hypotheses";
   if (module === "loop") return "/loops";
@@ -124,7 +124,7 @@ export default function DashboardPage() {
             {data.due_decision_reviews.map((e) => (
               <Link
                 key={e.id}
-                href={`/dtm/${e.ref_id}`}
+                href={`/dtm/detail?id=${e.ref_id}`}
                 className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm hover:bg-warning/10"
               >
                 <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />

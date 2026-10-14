@@ -27,9 +27,9 @@ const MODULES: { id: string; key: string }[] = [
 const PAGE_SIZE = 30;
 
 function eventHref(e: EventItem): string {
-  if (e.module === "dtm") return `/dtm/${e.ref_id}`;
+  if (e.module === "dtm") return `/dtm/detail?id=${e.ref_id}`;
   if (e.module === "kd") return `/kd?topic=${e.ref_id}`;
-  if (e.module === "ta") return e.ref_type === "project" ? `/ta/${e.ref_id}` : "/ta";
+  if (e.module === "ta") return e.ref_type === "project" ? `/ta/detail?id=${e.ref_id}` : "/ta";
   if (e.module === "ml") return "/ml";
   if (e.module === "hyp") return "/hypotheses";
   if (e.module === "loop") return "/loops";

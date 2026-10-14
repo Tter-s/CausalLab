@@ -1,8 +1,9 @@
 "use client";
-/** 决策详情：不可覆盖快照、概率预测、新信息时间线、复盘（AI/手动）、反事实（假设推演）。 */
+/** 决策详情：不可覆盖快照、概率预测、新信息时间线、复盘（AI/手动）、反事实（假设推演）。
+ *  路由为查询参数形式（/dtm/detail?id=27），兼容静态导出（动态段 [id] 无法在构建期枚举）。 */
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Camera, Lightbulb, Plus, ShieldAlert, Sparkles } from "lucide-react";
 import { LoadingBlock, ErrorState, AIBanner } from "@/components/layout/shared";
@@ -21,9 +22,9 @@ import type { DecisionDetail, Prediction } from "@/lib/types";
 
 function DecisionDetailPageInner() {
   const t = useT();
-  const params = useParams<{ id: string }>();
-  const id = params.id;
-  const detail = useApi<DecisionDetail>(`/dtm/decisions/${id}`);
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") ?? "";
+  const detail = useApi<DecisionDetail>(id ? `/dtm/decisions/${id}` : null);
   const ai = useAICall();
   const [predForm, setPredForm] = React.useState({ statement: "", probability: 50 });
   const [updateForm, setUpdateForm] = React.useState({ content: "", source: "", significance: "minor" });
@@ -31,6 +32,7 @@ function DecisionDetailPageInner() {
   const [cfOpen, setCfOpen] = React.useState(false);
   const [cfScenario, setCfScenario] = React.useState("");
 
+  if (!id) return <ErrorState error={new Error(t("链接缺少 id 参数：请从决策列表进入详情页。"))} />;
   if (detail.loading && !detail.data) return <LoadingBlock rows={5} />;
   if (detail.error) return <ErrorState error={detail.error} onRetry={detail.refresh} />;
   const d = detail.data;
