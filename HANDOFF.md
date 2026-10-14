@@ -11,7 +11,7 @@
 **CausaLab** —— 个人学习、决策与行动实验室。四个核心模块（知识债务 KD / 记忆实验室 ML / 决策时间机 DTM / 任务复盘 TA）+ 三个跨模块能力（证据时间线 / 假设实验室 / 改进循环），共享统一的事件/证据/链接/附件模型。
 
 - **完全无 AI 模式是一等公民**（规则诊断/规则复盘完整可用），云端 AI（DeepSeek/MiMo/Moonshot/任意 OpenAI 兼容）是可选增强。**不做本地模型部署**（无 Ollama）。
-- 仓库：`D:\code\CausalLab`，main 分支
+- 仓库：GitHub `Tter-s/CausalLab`（`main` 分支；本地克隆到任意目录即可）
 - 定位：本地单人 Web 应用；可选密码保护（设置 → 安全，默认关闭）
 
 ## 2. 当前状态快照（开工前先读这一节）
@@ -19,14 +19,14 @@
 | 项 | 值 |
 |---|---|
 | 本文件描述的状态 | 写作时刚完成「静态网页分发」迭代（见 §10）。**实际当前值请用** `git log -1 --oneline` / `git status` 查（文档不追实时状态） |
-| 远端 | `https://github.com/Tter-s/CausalLab.git`（`origin/main` 停在 `90b9bf1`） |
-| **推送状态** | 本地领先远端、**尚未推送**。要同步执行 `git push`（普通推送，无历史重写）；差多少见 `git log --oneline origin/main..main` |
+| 远端 | `https://github.com/Tter-s/CausalLab`（本次上传后 `origin/main` 已同步） |
+| **推送状态** | 已推送。本次上传后 `origin/main` 与本地 `main` 同步（普通推送，无历史重写） |
 | 工作区 | 干净，无未跟踪文件 |
 | 服务 | 不随仓库启动，需手动拉起（见 §5）。是否在跑用 `Get-NetTCPConnection -LocalPort 8000,3000 -State Listen` 查 |
 | 实测基线 | pytest **78/78** · Vitest **24/24** · E2E **10/10** · 无 AI 冒烟 **24/24** · ruff/mypy/tsc 全绿 · eslint **0 error**（11 warning，均为已声明的 `set-state-in-effect`） · `next build` 12 条业务路由 · **`npm run build:static` 静态导出成功（产物 `frontend/out/`，经 uvicorn 同源托管浏览器实测 8 项通过）** |
 | 数据库 | 37 张业务表（+ `alembic_version`），迁移 head = `b69c58233d86` |
 | API | 99 条路径 / 134 个操作；`docs/API.md` 与之 **134/134 精确对齐** |
-| AI 配置 | provider=deepseek（真实 Key，掩码 `sk-8****c7ac`），`auto_confirm_send=false`（隐私闸门开启，推荐值） |
+| AI 配置 | provider=deepseek（真实 Key 已配置；Key 加密存本机，不进仓库/文档），`auto_confirm_send=false`（隐私闸门开启，推荐值） |
 
 ## 3. 技术栈与版本
 
@@ -118,9 +118,9 @@ cd backend  ; uv run python scripts/smoke_no_ai.py       # 无 AI 冒烟（需 8
 - **Python 锁定 3.14.7**，uv 禁止下载解释器；依赖必须有 cp314 wheel（**禁 passlib**，bcrypt>=5）。
 - **依赖下限不能放松**（任务书 §11.8）：`cryptography>=50`、`pydantic>=2.14`（pydantic-core>=2.50）、`sqlalchemy>=2.1.4`、`bcrypt>=5`。钉到老版本会找不到 wheel → 回退源码编译 → Windows 上基本必然失败。
 - **无 Docker / 无 PostgreSQL 服务端**（详见 §8）。
-- npm 已指向 npmmirror；pip/uv 走阿里云镜像；缓存都在 D 盘。
+- npm 已指向 npmmirror；pip/uv 走阿里云镜像（缓存位置可自行配置）。
 - **Playwright 复用系统 Edge**（`channel: "msedge"`），**绝对不要** `npx playwright install`。
-- 不要动：`D:\code\qenc-main`、全局 npm prefix（内含正在运行的 `@deepseek-ai/dsh`）、`D:\flutter` 等 QENC 工具链。
+- 不要动本机其他工具链：其他项目的 checkout 目录、全局 npm prefix（其中可能有正在运行的工具）、本机 SDK 安装目录等。
 - **命令行传中文参数会被 GBK 拆坏**：中文内容写文件（如 `git commit -F <file>`），或用 Write 工具写临时 `.py` 再执行（heredoc 会碎）。
   同理，PowerShell 读 UTF-8 中文文件别用默认 `Get-Content`（会乱码并吞字符），用脚本的 `read_text(encoding="utf-8")`。
 - 提交信息用中文、一次迭代一个 commit。

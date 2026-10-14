@@ -1,10 +1,10 @@
 """CausaLab 应用配置。
 
 所有配置支持通过环境变量覆盖（前缀 CAUSALAB_），例如：
-    CAUSALAB_DATA_DIR=D:/causalab-data
+    CAUSALAB_DATA_DIR=C:/CausaLabData                        # 数据目录（示例，建议放仓库外）
     CAUSALAB_DB_URL=postgresql+psycopg://user:pass@host/db   # 生产可切换 PostgreSQL（本机未验证）
-    CAUSALAB_STATIC_DIR=E:/dist/causalab-static              # 静态前端目录（默认 frontend/out）
-    CAUSALAB_CORS_ORIGINS='["http://192.168.1.5:8080"]'      # 静态页与后端异源部署时放行页面来源
+    CAUSALAB_STATIC_DIR=C:/CausaLabStatic                    # 静态前端目录（默认 frontend/out）
+    CAUSALAB_CORS_ORIGINS='["http://192.0.2.10:8080"]'       # 页面来源示例（RFC 5737 文档地址；替换为实际来源）
 
 CORS 说明（异地静态托管场景）：页面与 API 不同源时（例如页面由另一台机器上的静态服务器提供，
 后端在本机 8000），需要把页面来源写进 CAUSALAB_CORS_ORIGINS（JSON 数组格式），并在页面的

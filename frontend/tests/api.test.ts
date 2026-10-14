@@ -112,18 +112,18 @@ describe("api client", () => {
   });
 
   it("优先取运行期注入的 window.__CAUSALAB_API_BASE__，容忍结尾斜杠", async () => {
-    vi.stubGlobal("window", { __CAUSALAB_API_BASE__: "http://192.168.1.5:8000/" });
+    vi.stubGlobal("window", { __CAUSALAB_API_BASE__: "http://192.0.2.10:8000/" });
     const { apiUrl } = await import("@/lib/api");
-    expect(apiUrl("/dashboard")).toBe("http://192.168.1.5:8000/api/dashboard");
+    expect(apiUrl("/dashboard")).toBe("http://192.0.2.10:8000/api/dashboard");
     vi.unstubAllGlobals();
   });
 
   it("其次取构建期 NEXT_PUBLIC_API_BASE", async () => {
     const prev = process.env.NEXT_PUBLIC_API_BASE;
-    process.env.NEXT_PUBLIC_API_BASE = "http://10.0.0.2:9000";
+    process.env.NEXT_PUBLIC_API_BASE = "http://192.0.2.11:9000";
     try {
       const { apiUrl } = await import("@/lib/api");
-      expect(apiUrl("/x")).toBe("http://10.0.0.2:9000/api/x");
+      expect(apiUrl("/x")).toBe("http://192.0.2.11:9000/api/x");
     } finally {
       process.env.NEXT_PUBLIC_API_BASE = prev;
     }

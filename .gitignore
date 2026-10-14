@@ -34,3 +34,6 @@ Thumbs.db
 .idea/
 .vscode/
 data-e2e/
+
+# 本地会话数据（WorkBuddy 等本机工具生成，不属于项目）
+.workbuddy/
