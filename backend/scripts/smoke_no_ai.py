@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """无 AI（provider=none）全链路冒烟：验证核心功能在完全不接云端 AI 时可用。
 
-对运行中的 127.0.0.1:8000 执行；创建的实体以「冒烟」前缀命名，结束后逐一清理。
+默认对运行中的 127.0.0.1:8000 执行；创建的实体以「冒烟」前缀命名，结束后逐一清理。
+若 8000 已被占用（例如并行开发实例），可用 CAUSALAB_SMOKE_BASE 指向隔离实例：
+    CAUSALAB_SMOKE_BASE=http://127.0.0.1:8031 uv run python scripts/smoke_no_ai.py
 """
+import os
 import sys
 
 import httpx
@@ -12,7 +15,7 @@ import httpx
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-BASE = "http://127.0.0.1:8000/api"
+BASE = os.environ.get("CAUSALAB_SMOKE_BASE", "http://127.0.0.1:8000").rstrip("/") + "/api"
 c = httpx.Client(base_url=BASE, timeout=30)
 ok_count = 0
 failures = []

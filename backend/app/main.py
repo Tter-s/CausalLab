@@ -1,8 +1,11 @@
-"""CausaLab FastAPI 主入口。启动时自动执行 Alembic 迁移（对 SQLite 亦适用）。"""
+"""CausaLab FastAPI 主入口。启动时自动执行 Alembic 迁移（对 SQLite 亦适用）。
+可选：把静态导出前端（frontend/out）与 API 同源托管——页面在 /，接口在 /api，无 CORS、无代理。
+"""
 from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -105,6 +108,19 @@ def create_app() -> FastAPI:
             status_code=401,
             content={"detail": {"code": "auth_required", "message": "需要登录后访问。"}},
         )
+
+    # ---------- 静态前端同源托管（可选；必须挂在所有 API 路由之后） ----------
+    # 产物由 frontend 的 `npm run build:static` 生成（目录可用 CAUSALAB_STATIC_DIR 覆盖）。
+    # 目录或 index.html 缺失时跳过（不影响 pytest / 纯 API 场景）。
+    # 注意：静态页面本身公开，密码保护中间件只拦 /api/*——页面可开、接口受保护，符合预期。
+    from fastapi.staticfiles import StaticFiles
+
+    static_dir: Path = Path(settings.static_dir).resolve()
+    if (static_dir / "index.html").is_file():
+        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+        logger.info("Static frontend served from %s", static_dir)
+    else:
+        logger.info("No static frontend at %s (run `npm run build:static` to generate) — API-only mode.", static_dir)
 
     return app
 
