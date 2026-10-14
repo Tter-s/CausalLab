@@ -2,7 +2,7 @@
 
 > **用途**：在新对话/新会话中快速恢复对 CausaLab 的完整上下文。读完本文件即可继续开发；
 > 细节查 `docs/ARCHITECTURE.md`（设计决策）、`docs/API.md`（接口）、`docs/PROGRESS.md`（进度与遗留）、`README.md`（功能与用法）。
-> **最后更新：2026-10-12（第十次迭代后）**
+> **最后更新：2026-10-14（第十一次迭代后）**
 
 ---
 
@@ -18,12 +18,12 @@
 
 | 项 | 值 |
 |---|---|
-| 本文件描述的状态 | 写作时本地 HEAD = `8ad9992`，工作区干净。**实际当前值请用** `git log -1 --oneline` / `git status` 查（文档不追实时状态） |
+| 本文件描述的状态 | 写作时刚完成「静态网页分发」迭代（见 §10）。**实际当前值请用** `git log -1 --oneline` / `git status` 查（文档不追实时状态） |
 | 远端 | `https://github.com/Tter-s/CausalLab.git`（`origin/main` 停在 `90b9bf1`） |
 | **推送状态** | 本地领先远端、**尚未推送**。要同步执行 `git push`（普通推送，无历史重写）；差多少见 `git log --oneline origin/main..main` |
 | 工作区 | 干净，无未跟踪文件 |
 | 服务 | 不随仓库启动，需手动拉起（见 §5）。是否在跑用 `Get-NetTCPConnection -LocalPort 8000,3000 -State Listen` 查 |
-| 实测基线 | pytest **75/75** · Vitest **20/20** · E2E **10/10** · 无 AI 冒烟 **24/24** · ruff/mypy/tsc 全绿 · eslint **0 error**（11 warning，均为已声明的 `set-state-in-effect`） · `next build` 12 条业务路由 |
+| 实测基线 | pytest **78/78** · Vitest **24/24** · E2E **10/10** · 无 AI 冒烟 **24/24** · ruff/mypy/tsc 全绿 · eslint **0 error**（11 warning，均为已声明的 `set-state-in-effect`） · `next build` 12 条业务路由 · **`npm run build:static` 静态导出成功（产物 `frontend/out/`，经 uvicorn 同源托管浏览器实测 8 项通过）** |
 | 数据库 | 37 张业务表（+ `alembic_version`），迁移 head = `b69c58233d86` |
 | API | 99 条路径 / 134 个操作；`docs/API.md` 与之 **134/134 精确对齐** |
 | AI 配置 | provider=deepseek（真实 Key，掩码 `sk-8****c7ac`），`auto_confirm_send=false`（隐私闸门开启，推荐值） |
@@ -34,9 +34,9 @@
 |---|---|
 | 后端 | Python **3.14.7**（锁死，见 §6）+ FastAPI 0.143 + SQLAlchemy 2.1.4 + Alembic 1.20 + SQLite（可切 PG）+ py-fsrs 6.3.2（官方库，MIT）+ bcrypt 5 + cryptography 50（Fernet）+ psycopg 3.3.6（PG 驱动） |
 | 前端 | Next.js **16.4.0**（App Router，纯客户端取数）+ React 19.3 + Tailwind v4 + Radix（shadcn 风格手写组件）+ Recharts + @xyflow/react + next-themes + sonner |
-| 测试 | pytest（后端 75）/ Vitest（前端 20）/ Playwright（E2E 10，复用系统 Edge，不下载浏览器） |
+| 测试 | pytest（后端 78）/ Vitest（前端 24）/ Playwright（E2E 10，复用系统 Edge，不下载浏览器） |
 | 工具 | uv 0.12.13 · Node v24.21.0 · npm 11.19 · git 2.56.0 |
-| 取数模式 | 前端统一相对路径 `/api/*`，由 Next rewrites 代理到 FastAPI `127.0.0.1:8000`（免 CORS） |
+| 取数模式 | 开发态：前端统一相对路径 `/api/*`，由 Next rewrites 代理到 FastAPI `127.0.0.1:8000`（免 CORS）。静态态：`apiUrl()` 基址解析（`window.__CAUSALAB_API_BASE__` → `NEXT_PUBLIC_API_BASE` → 相对路径），同源托管时行为不变（见 §7.10） |
 
 ## 4. 目录速览
 
@@ -56,19 +56,21 @@ CausalLab/
 │   │   └── ai/         # Provider 抽象：none/mock/openai_compat + config(隐私闸门/预算/结构化校验)
 │   ├── alembic/        # 5 个迁移（初始 schema / auth_sessions / events 索引 / recall_ms / attachments）
 │   ├── alembic.ini     # 必须保持纯 ASCII（见 §9 Alembic 条）
-│   ├── scripts/smoke_no_ai.py   # 无 AI 全链路冒烟（24 项，对运行中的 8000 执行）
-│   └── tests/          # 75 用例（含 test_uploads.py 14 个附件与清空联动用例）
+│   ├── scripts/smoke_no_ai.py   # 无 AI 全链路冒烟（24 项；默认对 8000，可用 CAUSALAB_SMOKE_BASE 换端口）
+│   └── tests/          # 78 用例（含 test_uploads.py 14 个附件用例 + test_static.py 3 个静态托管用例）
 └── frontend/
     ├── .dockerignore / Dockerfile          # 均未在本机验证
     ├── AGENTS.md         # Next 自动生成并重写（被跟踪，见 §9）
-    ├── src/app/          # 12 路由：/ /kd /ml /dtm /dtm/[id] /ta /ta/[id] /timeline
+    ├── src/app/          # 12 路由：/ /kd /ml /dtm /dtm/detail /ta /ta/detail /timeline
     │                     #        /hypotheses /loops /settings /login
+    │                     # 详情页为查询参数路由（/dtm/detail?id=N、/ta/detail?id=N），兼容静态导出
     ├── src/components/   # layout/(app-shell+shared) ui/(手写 shadcn 风格组件) brand-mark
     │                     # dev-tools-zh（仅 dev：汉化+拖拽 Next Dev Tools）
-    ├── src/lib/          # api.ts(428/401 处理 + postForm 附件上传) useApi.ts i18n.tsx(双语)
-    │                     # i18n-page-strings.ts ai-client.tsx(428 确认流) format.ts types.ts
+    ├── src/lib/          # api.ts(428/401 处理 + postForm 附件上传 + apiUrl 基址解析) useApi.ts
+    │                     # i18n.tsx(双语) i18n-page-strings.ts ai-client.tsx(428 确认流) format.ts types.ts
+    ├── scripts/build-static.mjs  # 静态导出（npm run build:static，跨平台，产物 out/）
     ├── e2e/flows.spec.ts # 10 个场景（含认证、附件上传、按任务模型保存）
-    └── tests/            # Vitest 20（含 i18n 覆盖扫描防退化测试）
+    └── tests/            # Vitest 24（含 i18n 覆盖扫描防退化测试 + 基址解析用例）
 ```
 
 ## 5. 启动 / 测试（Windows）
@@ -79,12 +81,21 @@ cd backend  ; uv run uvicorn app.main:app --port 8000    # 启动时自动 Alemb
 cd frontend ; npm run dev                                 # http://localhost:3000
 # 或直接双击仓库根目录的「启动CausaLab.bat」（自动清端口 + 等就绪 + 开浏览器）
 
+# 静态网页形态（不依赖 Docker 的分发路线，见 §7.10）
+cd frontend ; npm run build:static                        # 静态导出 → frontend/out/（纯静态文件）
+cd backend  ; uv run uvicorn app.main:app --port 8000     # 同源托管：http://127.0.0.1:8000/ 即完整应用
+#   （后端在所有 API 路由后自动挂载 frontend/out/；CAUSALAB_STATIC_DIR 可指向别处的静态目录）
+
 # 回归全套（改动后必跑）——后端
 cd backend  ; uv run pytest -q ; uv run ruff check app tests ; uv run mypy app
 # 回归全套——前端（注意顺序：build 前先关掉 dev server，二者共用 .next）
 cd frontend ; npx vitest run ; npx tsc --noEmit ; npm run lint ; npm run build
 cd frontend ; npx playwright test        # E2E：自动拉起隔离前后端（:8010 + :3100，msedge）
 cd backend  ; uv run python scripts/smoke_no_ai.py       # 无 AI 冒烟（需 8000 在运行）
+#   若 8000 被占用：另起隔离实例并用它与脚本对接——
+#   $env:CAUSALAB_DATA_DIR = Join-Path $env:TEMP ("causalab-smoke-" + (Get-Random))
+#   uv run uvicorn app.main:app --port 8031               # 另开终端
+#   $env:CAUSALAB_SMOKE_BASE = "http://127.0.0.1:8031" ; uv run python scripts/smoke_no_ai.py
 ```
 
 **排障与注意事项**
@@ -125,6 +136,7 @@ cd backend  ; uv run python scripts/smoke_no_ai.py       # 无 AI 冒烟（需 8
 7. **附件上传**：文件本体在 `data_dir/uploads/`，磁盘名由 uuid 生成，用户文件名只存库展示（响应也不回传 `stored_name`）。端点 `GET/POST /api/uploads`、`GET /api/uploads/{id}/content`、`DELETE /api/uploads/{id}`。前端必须用 `api.ts` 的 `postForm()`——它刻意清空 headers，否则 `api()` 默认的 `application/json` 会让后端无法解析 multipart。**附件不参与 JSON 导出**，但「清空业务数据」「载入演示数据」会一并删除记录与磁盘文件（见 `_wipe_business_data`）。
 8. **数据获取模式**：页面全用自研 `useApi` hook；`ai-client.tsx` 的 `useAICall` 处理 428→预览→确认重发。刻意整页跳转（登出/演示/清空后）有 eslint 豁免注释——不要改成软导航。
 9. **AI 配置的 None 语义**：`AIConfigIn` 中 `api_key` 与 `task_models` 都是「None/省略 = 保持原值」。**不要写成无条件覆盖**，否则任何只提交部分字段的客户端都会清空用户已存的配置（这个 bug 真出现过）。
+10. **静态分发形态（第十一次迭代新增）**：`npm run build:static` 产出 `frontend/out/`（`STATIC_EXPORT=1` → `output: "export"` + `trailingSlash: true`，该模式下**不注册 rewrites**）；FastAPI 在所有 API 路由**之后**挂 `StaticFiles(html=True)` 同源托管（默认 `frontend/out/`，`CAUSALAB_STATIC_DIR` 可覆盖，目录/index.html 缺失则跳过并记日志）。API 基址解析在 `api.ts`：`window.__CAUSALAB_API_BASE__`（运行期）→ `NEXT_PUBLIC_API_BASE`（构建期）→ 相对路径（默认）。**所有新代码访问 API 必须走 `api()` / `apiUrl()`，不要裸写 `/api/...`**，否则异地托管（静态页与后端不同源）场景断链。详情页一律查询参数路由（`/dtm/detail?id=N`、`/ta/detail?id=N`）。
 
 ## 8. 未在本机验证的项（**严禁写成"通过"**，任务书 §11.6）
 
@@ -161,15 +173,20 @@ cd backend  ; uv run python scripts/smoke_no_ai.py       # 无 AI 冒烟（需 8
 - **Next Dev Tools（nextjs-portal）**：open shadow DOM；菜单开关绑定在 click（非 pointerdown）；N 按钮容器是 `.nextjs-toast`（fixed），菜单卡片 `[role="menu"]` 自身就是 fixed 元素。`dev-tools-zh.tsx` 基于这些结构做汉化+拖拽，Next 大版本升级若失效会静默退化为无增强（不影响应用）。该 N 按钮在 dev 下会压住侧边栏底部文案，`app-shell.tsx` 已用 `NODE_ENV === "development"` 追加内边距让开。
 - **`.next/dev` 缓存会持续增长**：跑 `next dev`/E2E 后可涨到数百 MB（曾测得 ~750 MB），而纯 `npm run build` 的 `.next` 仅约 75 MB。属 Turbopack 行为，可定期清理。
 - **测试隔离**：pytest 共享一个临时库（conftest 设 `CAUSALAB_DATA_DIR`）；写测试注意跨用例状态污染（AI 配置、限流器、会话 cookie 都有前车之鉴）；E2E `beforeEach` 会先关认证 + 清业务数据。
+- **静态导出的三个坑**（第十一次迭代踩过）：① `output: "export"` 与 `rewrites` 不兼容——静态模式直接不注册代理（见 `next.config.ts` 的 `STATIC_EXPORT` 分支）；② 动态段路由（`[id]`）无法在构建期枚举运行期 id，静态导出必然失败——详情页改查询参数即解；③ `useSearchParams` 必须包 Suspense（两详情页已包，预渲染输出为骨架屏，数据客户端加载）。另：Starlette `StaticFiles(html=True)` 对**不带尾斜杠**的目录路径返回 307 跳到带斜杠版本，**查询参数原样保留**，浏览器与 curl -L 均无感。
+- **静态托管验证别忘同源性**：改动 `api.ts` 基址逻辑后，跑 `npm run build:static` + uvicorn（挂载 `out/`）在浏览器实际点一遍；只跑 dev/E2E 验证不到静态链路（dev 走的是 Next 代理）。
 
-## 10. 最近一次迭代（第十次）改了什么
+## 10. 最近一次迭代（第十一次）改了什么
 
-这一轮从「项目审计」开始，即远端 `90b9bf1` 之后的**全部本地提交**：
+**静态网页分发**——为绕开「本机无法使用 Docker」的限制，新增完全不依赖 Docker 的运行形态（修复两个挡路 Bug 后完成静态构建）：
 
-- **新增能力**：题目/解答附件上传（表 + 迁移 + 4 端点 + 存储服务 + 前端 UI + 14 后端用例 + 2 E2E 场景）；设置页「按任务类型指定模型」编辑区
-- **修掉的真 Bug**：CI E2E job 3 处错误配置、缺失的 `.dockerignore`、缺 PostgreSQL 驱动、`alembic.ini` 中文注释导致迁移静默降级、`task_models` 被部分提交清空、清空业务数据不清附件、pytest 临时目录泄漏、冒烟脚本 GBK 崩溃
-- **文档**：重建 `docs/PROGRESS.md`；`API.md` 补齐并做到与 OpenAPI 134/134 精确对齐；修正 README/HANDOFF/ARCHITECTURE 的计数漂移（曾互相矛盾：README 说 49/13/7，HANDOFF 说 60/37）
-- **配置**：`.dockerignore` × 2、依赖下限收紧、移除 4 个未使用的 Radix 包、`auto_confirm_send` 改回默认 `false`
+- **Bug 1（解除 API 通道对 Next 代理的硬依赖）**：`api.ts` 新增 `apiBase()`/`apiUrl()`（`window.__CAUSALAB_API_BASE__` → `NEXT_PUBLIC_API_BASE` → 相对路径）；`api()`、`postForm()` 及 4 处裸调用（登录 / CSV 导出 / 任务事件轮询 / 附件打开）统一收口；`next.config.ts` 增加 `STATIC_EXPORT=1` 分支
+- **Bug 2（详情页无法静态导出）**：`/dtm/[id]`→`/dtm/detail?id=N`、`/ta/[id]`→`/ta/detail?id=N`（`useParams`→`useSearchParams`），9 处链接构造同步更新，空 id 有明确报错态（已补英文翻译）
+- **新增能力**：`npm run build:static`（`scripts/build-static.mjs`，零新依赖）产出 `frontend/out/`；FastAPI 同源托管（`app/main.py` 在所有 API 路由后挂 `StaticFiles`，`CAUSALAB_STATIC_DIR` 可覆盖）；异地托管可选（`CAUSALAB_CORS_ORIGINS` + 页面 `config.js` 注入基址）
+- **测试**：`tests/test_static.py` 3 例 + 基址解析 4 例；冒烟脚本支持 `CAUSALAB_SMOKE_BASE`（8000 被占用时对隔离实例执行）
+- **本机验证**：pytest **78**、Vitest **24**、E2E **10**、冒烟 **24/24**、ruff/mypy/tsc/eslint 全绿、`npm run build:static` 成功、经 uvicorn 同源托管的浏览器全流程 **8 项通过**
+
+**未在本轮实施**：桌面端 App（pywebview + PyInstaller）——选型已探测确认可行，列为下一步（见 `docs/PROGRESS.md` §6）。
 
 完整的逐条记录见 `docs/PROGRESS.md` §5「迭代记录」。
 

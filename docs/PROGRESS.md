@@ -1,6 +1,6 @@
 # CausaLab 开发进度与未解决问题
 
-> 最后更新：2026-10-12
+> 最后更新：2026-10-14
 > 本文件是任务书 §九 要求的「开发进度与未解决问题清单」。
 > **本文件中的所有数字均为本机实测结果**；任何无法在本机验证的项都逐条标注「未在本机验证」，绝不写成"通过"（任务书 §11.6）。
 
@@ -10,8 +10,8 @@
 
 | 项目 | 结果 | 实测方式 |
 |---|---|---|
-| 后端单元/集成测试 | **75 passed** | `cd backend && uv run pytest -q` |
-| 前端单元测试 | **20 passed** | `cd frontend && npx vitest run` |
+| 后端单元/集成测试 | **78 passed** | `cd backend && uv run pytest -q` |
+| 前端单元测试 | **24 passed** | `cd frontend && npx vitest run` |
 | E2E（Playwright + 系统 Edge） | **10 passed** | `cd frontend && npx playwright test` |
 | 无 AI 全链路冒烟 | **24 通过 / 0 失败** | `cd backend && uv run python scripts/smoke_no_ai.py` |
 | ruff | All checks passed | `uv run ruff check app tests` |
@@ -19,6 +19,8 @@
 | tsc | 无错误 | `npx tsc --noEmit` |
 | eslint | **0 error**（11 warning，均为已声明的 `set-state-in-effect`） | `npx eslint .` |
 | next build | 成功，**12 条业务路由** | `npm run build` |
+| **静态导出构建** | **成功，产物 `frontend/out/`（2.5 MB，全部路由目录化）** | `npm run build:static` |
+| **静态页同源托管浏览器实测** | **通过**（uvicorn + Edge：首页/建决策/详情/深链/TA 全流程 8 项） | 见 §2.5 |
 | 数据模型 | **37 张业务表**（+ `alembic_version`） | `len(Base.metadata.tables)` |
 | 数据库迁移 | head = `b69c58233d86`（共 5 个迁移） | `uv run alembic current` |
 | API 规模 | **99 条路径 / 134 个操作** | `app.openapi()` |
@@ -59,6 +61,18 @@
 - 前端：KD「学习任务与诊断」标签页内新增「题目与解答附件」卡片（类型选择 / 选择文件 / 上传 / 列表 / 打开 / 删除），**与文本记录并存**（文本记要点，附件存原始题目与手写解答）
 - 测试：后端 **14** 个用例（扩展名/大小/空文件/非法 scope/路径穿越/越权/下载一致性/清空联动）+ 前端 `postForm` 1 个单元用例 + E2E **2** 个场景（真实文件上传与删除、按任务模型保存并回读校验）
 
+### 2.5 静态网页分发（本轮新增）
+
+依托「不依赖 Docker」的分发路线，新增第三种运行形态：**纯静态网页 + 后端托管**。
+
+- **解除 API 通道对 Next 代理的硬依赖**（原 Bug 1）：`api.ts` 新增基址解析，优先级 `window.__CAUSALAB_API_BASE__`（运行期注入，部署后不改包即可换后端地址）→ `NEXT_PUBLIC_API_BASE`（构建期）→ `""`（相对路径，开发/同源场景零行为变化）；`api()` / `postForm()` 与 4 处裸 `fetch/跳转`（登录、CSV 导出、任务事件轮询、附件打开）统一走 `apiUrl()`。
+- **详情页改为查询参数路由**（原 Bug 2）：`/dtm/[id]`→`/dtm/detail?id=N`、`/ta/[id]`→`/ta/detail?id=N`；动态段无法在构建期枚举全部运行期 id，静态导出必然失败，改为查询参数后彻底解除。9 处链接构造同步更新，空 `id` 有明确报错态（含英文翻译）。
+- **静态导出构建**：`npm run build:static`（`scripts/build-static.mjs`，跨平台、零新依赖；`STATIC_EXPORT=1` → `output: "export"` + `trailingSlash`，该模式不注册 rewrites）。
+- **后端同源托管**：`app/main.py` 在所有 API 路由之后挂载 `StaticFiles(html=True)`，默认目录 `frontend/out/`（`CAUSALAB_STATIC_DIR` 可覆盖）；目录或 index.html 缺失时跳过并记日志（pytest / 纯 API 场景不受影响）。同源托管无 CORS、无代理；页面公开、`/api/*` 仍受可选密码保护约束。
+- **异地托管（可选场景）**：任意静态服务器 + 后端设 `CAUSALAB_CORS_ORIGINS`（JSON 数组）+ 页面放一个 `config.js` 注入 `window.__CAUSALAB_API_BASE__`（文档见 `config.py` 顶部注释）。
+- **测试**：后端新增 `tests/test_static.py` 3 个用例（根页面与深链目录、`/api` 优先级、目录缺失不挂载）；前端新增 4 个基址解析单元用例。
+- **本机实测**（Edge，经 uvicorn 同源托管 `http://127.0.0.1:8031/`）：首页加载、UI 建决策、点卡片进详情（查询参数路由）、详情内加预测、直接深链（无尾斜杠，StaticFiles 307 跳转保留 `?id=`）、TA 项目详情、刷新持久性——**8 项全部通过**。
+
 ---
 
 ## 3. 未在本机验证的项（**严禁当作"通过"**）
@@ -75,7 +89,7 @@
 | Firefox / WebKit | ⚠️ **未在本机验证** | 本机只有 Edge，E2E 仅覆盖 Edge |
 | HuggingFace 下载 | ➖ 不涉及 | 本产品明确不做本地模型部署 |
 
-**已在本机充分验证**：pytest 75、Vitest 20、`next build`、uvicorn 冒烟、Playwright E2E（Edge，10 场景）、Alembic 迁移（SQLite）、ruff、mypy、tsc、eslint、无 AI 全链路冒烟 24/24、附件上传端到端（经 Next 代理的真实链路 + 浏览器内真实文件选择与删除）。
+**已在本机充分验证**：pytest 78、Vitest 24、`next build`、`npm run build:static`（静态产物 `frontend/out/`）、uvicorn 同源托管静态页的浏览器全流程（Edge，8 项）、Playwright E2E（Edge，10 场景）、Alembic 迁移（SQLite）、ruff、mypy、tsc、eslint、无 AI 全链路冒烟 24/24、附件上传端到端（经 Next 代理的真实链路 + 浏览器内真实文件选择与删除）。
 
 ---
 
@@ -126,13 +140,15 @@
 | 22 | `4dea440` | 消除弃用告警、lint 告警与冒烟脚本 GBK 编码崩溃 |
 | 23 | `f2d1cae` | 恢复 `alembic.ini` 纯 ASCII，修复启动迁移静默降级 |
 | 24 | *（本轮）* | 题目/解答附件上传（表+迁移+端点+前端+测试）；按任务类型选模型的前端入口；修 `task_models` 被清空的数据丢失、pytest 临时目录泄漏、依赖下限、调试按钮遮挡；本文件重建 |
+| 25 | *（本轮）* | 静态网页分发：解除 API 通道对 Next 代理的硬依赖（基址注入 + `apiUrl()` 统一）；详情页改查询参数路由；`npm run build:static` 静态导出；FastAPI 同源托管 `out/`；新增 test_static.py 3 例 + 基址解析 4 例；冒烟脚本支持 `CAUSALAB_SMOKE_BASE` 端口覆盖 |
 
 ---
 
 ## 6. 下一步建议
 
-1. **在具备 Docker 的机器上真跑一次** `docker compose up --build`，验证 Dockerfile 与 `.dockerignore`（本机永远做不到）。
-2. **在具备 PostgreSQL 的机器上**验证 `CAUSALAB_DB_URL=postgresql+psycopg://...` 的建表与迁移兼容性。
-3. **让 CI 真跑一次**（当前仅本地校验过语法与配置项名称）。
-4. 若要暴露到公网：启用密码保护，并考虑在反向代理层再加一道登录限流（进程内限流重启即清零）。
-5. 附件上传目前仅接在 KD 知识点上；由于表结构是通用的 `(module, ref_type, ref_id)`，可按需扩展到 ML 卡片、DTM 决策、TA 任务等。
+1. **桌面端 App（原计划 P4–P5，本轮未做）**：`pywebview + PyInstaller` 壳（选型已探测确认可行），双击即用、内置后端；依赖组与打包脚本按计划 `PLAN-STATIC-DESKTOP.md` §3 执行。
+2. **在具备 Docker 的机器上真跑一次** `docker compose up --build`，验证 Dockerfile 与 `.dockerignore`（本机永远做不到）。
+3. **在具备 PostgreSQL 的机器上**验证 `CAUSALAB_DB_URL=postgresql+psycopg://...` 的建表与迁移兼容性。
+4. **让 CI 真跑一次**（当前仅本地校验过语法与配置项名称）。
+5. 若要暴露到公网：启用密码保护，并考虑在反向代理层再加一道登录限流（进程内限流重启即清零）。
+6. 附件上传目前仅接在 KD 知识点上；由于表结构是通用的 `(module, ref_type, ref_id)`，可按需扩展到 ML 卡片、DTM 决策、TA 任务等。

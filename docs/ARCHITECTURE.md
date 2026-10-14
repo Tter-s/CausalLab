@@ -4,13 +4,15 @@
 
 ```
 浏览器（Next.js 16 App Router, 中文 UI, 深/浅主题）
-   │  相对路径 /api/*（Next rewrites 反向代理，免 CORS）
+   │  开发态：相对路径 /api/*（Next rewrites 反向代理，免 CORS）
+   │  静态态：FastAPI 同源托管静态页（页面与 /api 同端口）；异地托管时 apiUrl() 基址可注入
    ▼
 FastAPI（99 条路径 / 134 个操作，Pydantic v2 校验）
    │
    ├── SQLAlchemy 2.x ── SQLite（默认）/ PostgreSQL（CAUSALAB_DB_URL，未在本机验证）
    ├── Alembic（启动时自动 upgrade head；SQLite 用 render_as_batch）
    ├── AI Provider 抽象（none / mock / openai-compat）
+   ├── StaticFiles（可选：挂载 frontend/out/ 纯静态前端，html=True）
    └── Fernet（API Key 静态加密，密钥文件在数据目录）
 ```
 
@@ -74,12 +76,12 @@ run_structured():  统一管道 = 隐私确认(428) → 预算检查(402) → �
 
 ## 4. 前端架构
 
-- **App Router + 全 client 页面**：12 个路由（含 `/login` 认证页）；数据获取用自研 SWR 风格 `useApi` hook（不引入 React Query，保持轻量）；
-- **API 客户端**（lib/api.ts）：统一错误结构；428 响应转成 `AIConfirmRequiredError`，`useAICall` hook 自动处理「预览 → 确认 → 重发」流程；
+- **App Router + 全 client 页面**：12 个路由（含 `/login` 认证页；两个详情页为查询参数路由 `/dtm/detail?id=N`、`/ta/detail?id=N`，兼容静态导出）；数据获取用自研 SWR 风格 `useApi` hook（不引入 React Query，保持轻量）；
+- **API 客户端**（lib/api.ts）：统一错误结构；428 响应转成 `AIConfirmRequiredError`，`useAICall` hook 自动处理「预览 → 确认 → 重发」流程；`apiUrl()` 做静态托管基址解析（运行期注入 → 构建期 env → 相对路径），**所有 API 访问必须经它**；
 - **UI 组件库**：shadcn 风格手写（Tailwind v4 + Radix primitives + CVA），主题 token 用 OKLCH CSS 变量，深/浅色由 next-themes 驱动；
 - **视觉规范**：侧边栏布局、卡片化信息结构、空态/加载骨架/错误态全覆盖、重要操作二次确认、sonner 全局 toast；
 - **国际化接口**：zh 字典完整、en 覆盖导航与通用操作（任务书要求"预留接口"），`useT()` + localStorage；
-- **Next 16 适配**：动态路由页用 Suspense 边界（PPR 流式渲染）；`allowedDevOrigins` 允许 127.0.0.1 访问 dev 资源；预渲染期间禁止直接读时钟（计时状态在 effect 中初始化）。
+- **Next 16 适配**：查询参数页 / 取 searchParams 的页面用 Suspense 边界（静态导出时预渲染为骨架，数据客户端加载）；`allowedDevOrigins` 允许 127.0.0.1 访问 dev 资源；预渲染期间禁止直接读时钟（计时状态在 effect 中初始化）；`STATIC_EXPORT=1` 时切换为 `output: "export"` + `trailingSlash`（不注册 rewrites）。
 
 ## 4.5 可选认证层（services/auth.py）
 
