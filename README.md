@@ -197,10 +197,10 @@ uv run --group desktop python ..\desktop\shell.py
 手机上的 CausaLab 是一个 WebView 客户端——页面与数据来自你电脑上运行的 CausaLab，**需在同一局域网**：
 
 ```powershell
-# 构建（需要 Flutter + JDK 17 + Android SDK；本机工具链环境变量示例）
-$env:JAVA_HOME = "D:\jdk17"
-$env:ANDROID_HOME = "D:\Android\Sdk"
-$env:GRADLE_USER_HOME = "D:\gradle-home"
+# 构建（需要 Flutter + JDK 17 + Android SDK；尖括号处替换为实际安装路径）
+$env:JAVA_HOME = "<JDK 17 安装目录>"
+$env:ANDROID_HOME = "<Android SDK 目录>"
+$env:GRADLE_USER_HOME = "<Gradle 用户目录>"
 cd mobile
 flutter build apk --release
 # 产物：mobile\build\app\outputs\flutter-apk\app-release.apk（拷到手机安装即可）

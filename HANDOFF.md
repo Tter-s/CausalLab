@@ -1,7 +1,7 @@
 # CausaLab 交接文档（HANDOFF）
 
 > **用途**：在新对话/新会话中快速恢复对 CausaLab 的完整上下文。读完本文件即可继续开发；
-> 细节查 `docs/ARCHITECTURE.md`（设计决策）、`docs/API.md`（接口）、`docs/PROGRESS.md`（进度与遗留）、`README.md`（功能与用法）。
+> 细节查 `docs/ARCHITECTURE.md`（设计决策）、`docs/API.md`（接口）、`docs/PROGRESS.md`（进度与遗留）、`README.md`（功能与用法）、`HANDOFF-BUILD.md`（三大分发形态构建与交付）。
 > **最后更新：2026-10-14（第十二次迭代后）**
 
 ---
@@ -19,9 +19,9 @@
 | 项 | 值 |
 |---|---|
 | 本文件描述的状态 | 写作时刚完成「桌面应用 + 安卓 APK」迭代（见 §10），三大分发形态齐备。**实际当前值请用** `git log -1 --oneline` / `git status` 查（文档不追实时状态） |
-| 远端 | `https://github.com/Tter-s/CausalLab`（本次上传后 `origin/main` 已同步） |
-| **推送状态** | 已推送。本次上传后 `origin/main` 与本地 `main` 同步（普通推送，无历史重写） |
-| 工作区 | 干净，无未跟踪文件 |
+| 远端 | `https://github.com/Tter-s/CausalLab`（推送后 `origin/main` 与本地同步） |
+| **推送状态** | 本地领先远端、**待推送**（由维护者执行 `git push`；差多少见 `git log --oneline origin/main..main`） |
+| 工作区 | 干净；构建计划参考 `docs/PLAN-STATIC-DESKTOP.md` 保持未跟踪（不随提交） |
 | 服务 | 不随仓库启动，需手动拉起（见 §5）。是否在跑用 `Get-NetTCPConnection -LocalPort 8000,3000 -State Listen` 查 |
 | 实测基线 | pytest **79/79** · Vitest **26/26** · E2E **10/10** · 无 AI 冒烟 **24/24** · ruff/mypy/tsc 全绿 · eslint **0 error**（11 warning，均为已声明的 `set-state-in-effect`） · `next build` 12 条业务路由 · **`npm run build:static` 静态导出成功** · **桌面版 PyInstaller 打包成功（68 MB，dev/frozen 双冒烟 + 窗口启动通过）** · **安卓 APK release 构建成功（45.7 MB）** |
 | 数据库 | 37 张业务表（+ `alembic_version`），迁移 head = `b69c58233d86` |
@@ -93,9 +93,9 @@ cd backend  ; uv run uvicorn app.main:app --port 8000     # 同源托管：http:
 powershell -ExecutionPolicy Bypass -File desktop\build.ps1   # 产物 desktop\dist\CausaLab\CausaLab.exe（68 MB）
 desktop\dist\CausaLab\CausaLab.exe --smoke                   # 打包版自检（退出码 0 = 通过）
 
-# 安卓 APK（§7.11）：构建（需 JDK 17 + Android SDK + Flutter；环境变量示例）
-$env:JAVA_HOME="D:\jdk17"; $env:ANDROID_HOME="D:\Android\Sdk"; $env:GRADLE_USER_HOME="D:\gradle-home"
-$env:PUB_CACHE="D:\pub-cache"; $env:PUB_HOSTED_URL="https://pub.flutter-io.cn"
+# 安卓 APK（§7.11）：构建（需 JDK 17 + Android SDK + Flutter；尖括号处替换为实际安装路径）
+$env:JAVA_HOME="<JDK 17 安装目录>"; $env:ANDROID_HOME="<Android SDK 目录>"; $env:GRADLE_USER_HOME="<Gradle 用户目录>"
+$env:PUB_CACHE="<Pub 缓存目录>"; $env:PUB_HOSTED_URL="https://pub.flutter-io.cn"
 cd mobile ; flutter build apk --release                      # 产物 ...\flutter-apk\app-release.apk（45.7 MB）
 
 # 回归全套（改动后必跑）——后端

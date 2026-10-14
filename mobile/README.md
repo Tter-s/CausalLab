@@ -16,10 +16,10 @@
 ## 构建（Windows，本机已验证）
 
 ```powershell
-# 前置：Flutter（D:\flutter）+ JDK 17 + Android SDK；设置环境变量后执行
-$env:JAVA_HOME = "D:\jdk17"
-$env:ANDROID_HOME = "D:\Android\Sdk"
-$env:GRADLE_USER_HOME = "D:\gradle-home"
+# 前置：Flutter + JDK 17 + Android SDK；设置环境变量后执行（尖括号处替换为实际安装路径）
+$env:JAVA_HOME = "<JDK 17 安装目录>"
+$env:ANDROID_HOME = "<Android SDK 目录>"
+$env:GRADLE_USER_HOME = "<Gradle 用户目录>"
 cd mobile
 flutter build apk --release
 # 产物：mobile\build\app\outputs\flutter-apk\app-release.apk
