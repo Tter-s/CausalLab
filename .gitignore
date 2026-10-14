@@ -37,3 +37,8 @@ data-e2e/
 
 # 本地会话数据（WorkBuddy 等本机工具生成，不属于项目）
 .workbuddy/
+
+# 桌面版（desktop/）：构建产物与开发态数据
+desktop/build/
+desktop/dist/
+desktop/.data/

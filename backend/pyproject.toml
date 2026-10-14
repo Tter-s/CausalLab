@@ -28,6 +28,12 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.13",
 ]
+# 桌面版（desktop/）专用：pywebview 窗口壳 + PyInstaller 打包（默认安装不受影响）
+desktop = [
+    "pywebview>=5.3",
+    "pythonnet>=3.0",
+    "pyinstaller>=6.10",
+]
 
 [tool.ruff]
 line-length = 140
