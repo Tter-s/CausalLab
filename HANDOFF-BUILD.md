@@ -93,6 +93,8 @@ cd backend ; uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## 4. 上传 / 推送（维护者操作）
 
+本轮（三大形态构建 + 交接文档）的提交已推送到 GitHub（`origin/main` 与本地同步）；此后例行推送仍为：
+
 ```powershell
 # 仓库目录下执行
 git log --oneline origin/main..main    # 查看待推送提交

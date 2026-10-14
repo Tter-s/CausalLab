@@ -19,8 +19,8 @@
 | 项 | 值 |
 |---|---|
 | 本文件描述的状态 | 写作时刚完成「桌面应用 + 安卓 APK」迭代（见 §10），三大分发形态齐备。**实际当前值请用** `git log -1 --oneline` / `git status` 查（文档不追实时状态） |
-| 远端 | `https://github.com/Tter-s/CausalLab`（推送后 `origin/main` 与本地同步） |
-| **推送状态** | 本地领先远端、**待推送**（由维护者执行 `git push`；差多少见 `git log --oneline origin/main..main`） |
+| 远端 | `https://github.com/Tter-s/CausalLab`（已推送，`origin/main` 与本地同步） |
+| **推送状态** | **已推送**。`origin/main` 与本地 `main` 同步（普通推送，无历史重写） |
 | 工作区 | 干净；构建计划参考 `docs/PLAN-STATIC-DESKTOP.md` 保持未跟踪（不随提交） |
 | 服务 | 不随仓库启动，需手动拉起（见 §5）。是否在跑用 `Get-NetTCPConnection -LocalPort 8000,3000 -State Listen` 查 |
 | 实测基线 | pytest **79/79** · Vitest **26/26** · E2E **10/10** · 无 AI 冒烟 **24/24** · ruff/mypy/tsc 全绿 · eslint **0 error**（11 warning，均为已声明的 `set-state-in-effect`） · `next build` 12 条业务路由 · **`npm run build:static` 静态导出成功** · **桌面版 PyInstaller 打包成功（68 MB，dev/frozen 双冒烟 + 窗口启动通过）** · **安卓 APK release 构建成功（45.7 MB）** |
