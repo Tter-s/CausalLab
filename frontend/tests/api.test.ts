@@ -103,4 +103,39 @@ describe("api client", () => {
     expect((init.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
     vi.unstubAllGlobals();
   });
+
+  // ---- 静态托管基址解析（window 注入 → 构建期 env → 相对路径）----
+  it("默认相对路径：同源托管与开发代理场景零行为变化", async () => {
+    const { apiBase, apiUrl } = await import("@/lib/api");
+    expect(apiBase()).toBe("");
+    expect(apiUrl("/dashboard")).toBe("/api/dashboard");
+  });
+
+  it("优先取运行期注入的 window.__CAUSALAB_API_BASE__，容忍结尾斜杠", async () => {
+    vi.stubGlobal("window", { __CAUSALAB_API_BASE__: "http://192.168.1.5:8000/" });
+    const { apiUrl } = await import("@/lib/api");
+    expect(apiUrl("/dashboard")).toBe("http://192.168.1.5:8000/api/dashboard");
+    vi.unstubAllGlobals();
+  });
+
+  it("其次取构建期 NEXT_PUBLIC_API_BASE", async () => {
+    const prev = process.env.NEXT_PUBLIC_API_BASE;
+    process.env.NEXT_PUBLIC_API_BASE = "http://10.0.0.2:9000";
+    try {
+      const { apiUrl } = await import("@/lib/api");
+      expect(apiUrl("/x")).toBe("http://10.0.0.2:9000/api/x");
+    } finally {
+      process.env.NEXT_PUBLIC_API_BASE = prev;
+    }
+  });
+
+  it("注入基址时 api() 使用完整 URL 发起请求", async () => {
+    vi.stubGlobal("window", { __CAUSALAB_API_BASE__: "http://host:99" });
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { get } = await import("@/lib/api");
+    await get("/dashboard");
+    expect(fetchMock.mock.calls[0][0]).toBe("http://host:99/api/dashboard");
+    vi.unstubAllGlobals();
+  });
 });

@@ -35,10 +35,39 @@ export const BACKEND_UNREACHABLE_MESSAGE =
   "或在 backend 目录运行：uv run uvicorn app.main:app --port 8000\n" +
   "然后点击下方「重试」刷新。";
 
+declare global {
+  interface Window {
+    /** 静态托管场景的运行期注入（由部署方放一个 config.js 设置），优先于构建期配置。 */
+    __CAUSALAB_API_BASE__?: string;
+  }
+}
+
+/**
+ * 后端基址解析（静态产物也能在部署后改，无需重新构建）：
+ * 1. `window.__CAUSALAB_API_BASE__`（运行期注入，如 "http://127.0.0.1:8000"）；
+ * 2. `NEXT_PUBLIC_API_BASE`（构建期环境变量）；
+ * 3. `""`（默认相对路径——同源托管场景零行为变化）。
+ */
+export function apiBase(): string {
+  if (typeof window !== "undefined") {
+    const injected = window.__CAUSALAB_API_BASE__;
+    if (typeof injected === "string" && injected.trim()) return injected.trim().replace(/\/+$/, "");
+  }
+  const fromEnv = process.env.NEXT_PUBLIC_API_BASE;
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim().replace(/\/+$/, "");
+  return "";
+}
+
+/** 把 API 路径（形如 "/dashboard"，不含 /api 前缀）解析为可请求的完整 URL。 */
+export function apiUrl(path: string): string {
+  const base = apiBase();
+  return base ? `${base}/api${path}` : `/api${path}`;
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(apiUrl(path), {
       headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
       cache: "no-store",
       ...init,

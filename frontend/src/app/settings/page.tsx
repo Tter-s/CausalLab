@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { del, get, post, put } from "@/lib/api";
+import { apiUrl, del, get, post, put } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useTheme } from "next-themes";
 import { fmtDateTime } from "@/lib/format";
@@ -203,7 +203,7 @@ export default function SettingsPage() {
   };
 
   const exportCsv = async (path: string, name: string) => {
-    const res = await fetch(`/api${path}`);
+    const res = await fetch(apiUrl(path));
     const text = await res.text();
     const blob = new Blob(["\ufeff" + text], { type: "text/csv" });
     const url = URL.createObjectURL(blob);

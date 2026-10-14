@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
+import { apiUrl } from "@/lib/api";
 
 export default function LoginPage() {
   const t = useT();
@@ -22,7 +23,7 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      const r = await fetch("/api/auth/login", {
+      const r = await fetch(apiUrl("/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),

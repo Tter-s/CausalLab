@@ -3,6 +3,13 @@
 所有配置支持通过环境变量覆盖（前缀 CAUSALAB_），例如：
     CAUSALAB_DATA_DIR=D:/causalab-data
     CAUSALAB_DB_URL=postgresql+psycopg://user:pass@host/db   # 生产可切换 PostgreSQL（本机未验证）
+    CAUSALAB_STATIC_DIR=E:/dist/causalab-static              # 静态前端目录（默认 frontend/out）
+    CAUSALAB_CORS_ORIGINS='["http://192.168.1.5:8080"]'      # 静态页与后端异源部署时放行页面来源
+
+CORS 说明（异地静态托管场景）：页面与 API 不同源时（例如页面由另一台机器上的静态服务器提供，
+后端在本机 8000），需要把页面来源写进 CAUSALAB_CORS_ORIGINS（JSON 数组格式），并在页面的
+config.js 里注入 window.__CAUSALAB_API_BASE__ = "http://<后端地址>:8000"。
+同源托管（FastAPI 同时服务页面与 API）无需任何 CORS 配置。
 """
 from __future__ import annotations
 
@@ -22,6 +29,9 @@ class AppConfig(BaseSettings):
     data_dir: Path = BASE_DIR / "data"
     # 留空则使用 SQLite；生产可指向 PostgreSQL（本机未验证，见 README）
     db_url: str = ""
+    # 静态前端目录（npm run build:static 的产物）。目录不存在时后端跳过挂载、只提供 API。
+    static_dir: Path = BASE_DIR.parent / "frontend" / "out"
+    # 跨源白名单：仅当静态页与后端异源部署时才需要扩充（如局域网另一台机器打开页面）
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
